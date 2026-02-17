@@ -1,5 +1,6 @@
 asgiref==3.11.1
 Django==6.0.2
+django-cors-headers==4.9.0
 django-filter==25.2
 djangorestframework==3.16.1
 mysqlclient==2.2.8

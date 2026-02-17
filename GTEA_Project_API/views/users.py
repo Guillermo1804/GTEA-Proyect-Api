@@ -42,6 +42,13 @@ class AdminAll(generics.CreateAPIView):
 class AdminView(generics.CreateAPIView):
     #Obtener usuario por ID
     # permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = UserSerializer
+
+    def get_serializer_class(self):
+        # Use AdminSerializer for GET (representation) and UserSerializer for POST (creation)
+        if hasattr(self, 'request') and self.request.method == 'GET':
+            return AdminSerializer
+        return self.serializer_class
     def get(self, request, *args, **kwargs):
         admin = get_object_or_404(Administradores, id = request.GET.get("id"))
         admin = AdminSerializer(admin, many=False).data
@@ -51,41 +58,47 @@ class AdminView(generics.CreateAPIView):
     #Registrar nuevo usuario
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        user = UserSerializer(data=request.data)
+        # Work on a mutable copy of the incoming data so we can ensure username exists
+        payload = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        if not payload.get('username') and payload.get('email'):
+            payload['username'] = payload.get('email')
+
+        user = UserSerializer(data=payload)
         if user.is_valid():
-            #Grab user data
-            role = request.data['rol']
-            first_name = request.data['first_name']
-            last_name = request.data['last_name']
-            email = request.data['email']
-            password = request.data['password']
-            #Valida si existe el usuario o bien el email registrado
+            # Grab user data from payload (use get() to avoid KeyError)
+            role = payload.get('rol')
+            first_name = payload.get('first_name')
+            last_name = payload.get('last_name')
+            email = payload.get('email')
+            password = payload.get('password')
+
+            # Valida si existe el usuario o bien el email registrado
             existing_user = User.objects.filter(email=email).first()
 
             if existing_user:
-                return Response({"message":"Username "+email+", is already taken"},400)
+                return Response({"email": [f"Username {email} is already taken"]}, status=400)
 
-            user = User.objects.create( username = email,
-                                        email = email,
-                                        first_name = first_name,
-                                        last_name = last_name,
-                                        is_active = 1)
-
+            user = User.objects.create(username=email,
+                                       email=email,
+                                       first_name=first_name or '',
+                                       last_name=last_name or '',
+                                       is_active=1)
 
             user.save()
-            user.set_password(password)
-            user.save()
+            if password:
+                user.set_password(password)
+                user.save()
 
             group, created = Group.objects.get_or_create(name=role)
             group.user_set.add(user)
             user.save()
 
-            #Create a profile for the user
+            # Create a profile for the user
             admin = Administradores.objects.create(user=user,
-                                            clave_admin= request.data["clave_admin"])
+                                                   clave_admin=payload.get("clave_admin"))
             admin.save()
 
-            return Response({"admin_created_id": admin.id }, 201)
+            return Response({"admin_created_id": admin.id}, 201)
 
         return Response(user.errors, status=status.HTTP_400_BAD_REQUEST)
 
