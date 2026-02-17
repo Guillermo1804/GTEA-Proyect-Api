@@ -16,7 +16,34 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from .views import alumnos
+from .views import maestros
+from .views import auth
+from .views import organizadores
+from .views import users
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    #Create Admin
+        path('admin/', users.AdminView.as_view()),
+    #Admin Data
+        path('lista-admins/', users.AdminAll.as_view()),
+    #Edit Admin
+        path('admins-edit/', users.AdminsViewEdit.as_view()),
+    #Create Alumno
+        path('alumnos/', alumnos.AlumnosView.as_view()),
+    #Alumno Data
+        path('lista-alumnos/', alumnos.AlumnosAll.as_view()),
+    #Edit Alumno
+        path('alumnos-edit/', alumnos.AlumnosViewEdit.as_view()),
+    #Create Maestro
+        path('organizadores/', organizadores.OrganizadoresView.as_view()),
+    #Maestro Data
+        path('lista-organizadores/', organizadores.OrganizadoresAll.as_view()),
+    #Edit Maestro
+        path('organizadores-edit/', organizadores.OrganizadoresViewEdit.as_view()),
+    #Login
+        path('token/', auth.CustomAuthToken.as_view()),
+    #Logout
+        path('logout/', auth.Logout.as_view()),
+
 ]
