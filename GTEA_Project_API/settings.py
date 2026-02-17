@@ -37,6 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'GTEA_Project_API',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -79,7 +82,7 @@ DATABASES = {
         'USER': 'root',               # Usuario por defecto de XAMPP
         'PASSWORD': '',               # En XAMPP, el root suele no tener contraseña
         'HOST': '127.0.0.1',          # O 'localhost'
-        'PORT': '3306',               # Puerto por defecto de MySQL
+        'PORT': '3307',               # Puerto por defecto de MySQL
     }
 }
 

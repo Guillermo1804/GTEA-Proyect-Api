@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from django.db.models import *
 from django.db import transaction
-from sistema_fcc_api.serializers import *
-from sistema_fcc_api.models import *
+from GTEA_Project_API.serializers import *
+from GTEA_Project_API.models import *
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication, TokenAuthentication
 from rest_framework.generics import CreateAPIView, DestroyAPIView, UpdateAPIView
 from rest_framework import permissions

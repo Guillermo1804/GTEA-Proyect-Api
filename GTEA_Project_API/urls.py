@@ -17,9 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from .views import alumnos
-from .views import maestros
 from .views import auth
-from .views import organizadores
+from .views import organizador
 from .views import users
 
 urlpatterns = [
@@ -36,11 +35,11 @@ urlpatterns = [
     #Edit Alumno
         path('alumnos-edit/', alumnos.AlumnosViewEdit.as_view()),
     #Create Maestro
-        path('organizadores/', organizadores.OrganizadoresView.as_view()),
+        path('organizadores/', organizador.OrganizadoresView.as_view()),
     #Maestro Data
-        path('lista-organizadores/', organizadores.OrganizadoresAll.as_view()),
+        path('lista-organizadores/', organizador.OrganizadorAll.as_view()),
     #Edit Maestro
-        path('organizadores-edit/', organizadores.OrganizadoresViewEdit.as_view()),
+        path('organizadores-edit/', organizador.OrganizadoresViewEdit.as_view()),
     #Login
         path('token/', auth.CustomAuthToken.as_view()),
     #Logout
