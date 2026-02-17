@@ -29,6 +29,9 @@ from django.template.loader import render_to_string
 import string
 import random
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 class OrganizadorAll(generics.CreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
@@ -49,44 +52,47 @@ class OrganizadoresView(generics.CreateAPIView):
     #Registrar nuevo usuario
     @transaction.atomic
     def post(self, request, *args, **kwargs):
+        # Diagnostic logging
+        logger.info('RAW BODY: %s', request.body)
+        logger.info('PARSED DATA: %s', request.data)
 
-        user = UserSerializer(data=request.data)
-        if user.is_valid():
-            #Grab user data
-            role = request.data['rol']
-            first_name = request.data['first_name']
-            last_name = request.data['last_name']
-            email = request.data['email']
-            password = request.data['password']
-            #Valida si existe el usuario o bien el email registrado
-            existing_user = User.objects.filter(email=email).first()
+        user_serializer = UserSerializer(data=request.data)
+        if not user_serializer.is_valid():
+            logger.info('User serializer errors: %s', user_serializer.errors)
+            return Response({'errors': user_serializer.errors, 'received': dict(request.data)}, status=400)
 
-            if existing_user:
-                return Response({"message":"Username "+email+", is already taken"},400)
+        # Safely extract fields
+        role = request.data.get('rol')
+        first_name = request.data.get('first_name', '')
+        last_name = request.data.get('last_name', '')
+        email = request.data.get('email')
+        password = request.data.get('password')
 
-            user = User.objects.create( username = email,
-                                        email = email,
-                                        first_name = first_name,
-                                        last_name = last_name,
-                                        is_active = 1)
+        if not all([email, password, role]):
+            missing = [k for k in ('email', 'password', 'rol') if not request.data.get(k)]
+            return Response({'detail': f'missing required fields: {missing}'}, status=400)
 
+        #Valida si existe el usuario o bien el email registrado
+        existing_user = User.objects.filter(email=email).first()
 
-            user.save()
-            user.set_password(password)
-            user.save()
+        if existing_user:
+            return Response({"message": f"Username {email} is already taken"}, 400)
 
-            group, created = Group.objects.get_or_create(name=role)
-            group.user_set.add(user)
-            user.save()
-            #Para extraer de la base de datos hacer el json.load()
-            #Create a profile for the user
-            organizador = Organizadores.objects.create(user=user,
-                                            id_trabajador= request.data["id_trabajador"])
-            organizador.save()
+        # Create user and profile
+        user = User.objects.create(username=email, email=email, first_name=first_name, last_name=last_name, is_active=1)
+        user.save()
+        user.set_password(password)
+        user.save()
 
-            return Response({"organizador_created_id": organizador.id }, 201)
+        group, created = Group.objects.get_or_create(name=role)
+        group.user_set.add(user)
+        user.save()
 
-        return Response(user.errors, status=status.HTTP_400_BAD_REQUEST)
+        id_trabajador = request.data.get('id_trabajador')
+        organizador = Organizadores.objects.create(user=user, id_trabajador=id_trabajador)
+        organizador.save()
+
+        return Response({"organizador_created_id": organizador.id }, 201)
 
 #Se tiene que modificar la parte de edicion y eliminar
 class OrganizadoresViewEdit(generics.CreateAPIView):

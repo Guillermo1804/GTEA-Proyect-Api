@@ -158,19 +158,63 @@ class AdminsViewEdit(generics.CreateAPIView):
 @api_view(['POST'])
 @parser_classes([JSONParser])
 def register_user(request):
-    """Register a user and log incoming request payloads for debugging."""
+    """Register a user.
+
+    Determina el rol por el dominio del email (parte después del '@'):
+    - si el prefijo del dominio sugiere 'alumno' => rol 'alumno'
+    - si sugiere 'organizador' => rol 'organizador'
+    - en otro caso => rol 'administrador'
+
+    Crea el `User`, añade al `Group` con el nombre del rol (en minúsculas)
+    y crea el perfil correspondiente (`Alumnos`, `Organizadores` o `Administradores`).
+    """
     logger.info("RAW BODY: %s", request.body)
     logger.info("PARSED DATA: %s", request.data)
-    logger.info("REQUEST.POST: %s", request.POST)
 
-    username = request.data.get('username') or request.data.get('email') or request.POST.get('username')
+    email = request.data.get('email') or request.POST.get('email')
     password = request.data.get('password') or request.POST.get('password')
 
-    if not username or not password:
-        return Response({'detail': 'username and password required'}, status=status.HTTP_400_BAD_REQUEST)
+    if not email or not password:
+        return Response({'detail': 'email and password required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    if User.objects.filter(username=username).exists():
+    # helper to infer role from email domain
+    def _role_from_email(email_str):
+        try:
+            domain = email_str.split('@', 1)[1].lower()
+        except Exception:
+            return 'administrador'
+        prefix = domain.split('.')[0]
+        if prefix in {'alumno', 'alumnos', 'student', 'students'}:
+            return 'alumno'
+        if prefix in {'organizador', 'organizers', 'organizer'}:
+            return 'organizador'
+        return 'administrador'
+
+    role = _role_from_email(email)
+
+    if User.objects.filter(email=email).exists():
         return Response({'detail': 'user already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
-    user = User.objects.create_user(username=username, password=password)
-    return Response({'id': user.id, 'username': user.username}, status=status.HTTP_201_CREATED)
+    with transaction.atomic():
+        user = User.objects.create(username=email, email=email, first_name=request.data.get('first_name', ''), last_name=request.data.get('last_name', ''), is_active=1)
+        user.set_password(password)
+        user.save()
+
+        group, _ = Group.objects.get_or_create(name=role)
+        group.user_set.add(user)
+
+        profile_id = None
+        if role == 'alumno':
+            matricula = request.data.get('matricula')
+            alumno = Alumnos.objects.create(user=user, matricula=matricula)
+            profile_id = alumno.id
+        elif role == 'organizador':
+            id_trabajador = request.data.get('id_trabajador')
+            organizador = Organizadores.objects.create(user=user, id_trabajador=id_trabajador)
+            profile_id = organizador.id
+        else:
+            clave_admin = request.data.get('clave_admin')
+            admin = Administradores.objects.create(user=user, clave_admin=clave_admin)
+            profile_id = admin.id
+
+    return Response({'detail': 'user created', 'role': role, 'profile_id': profile_id}, status=status.HTTP_201_CREATED)

@@ -6,6 +6,7 @@ from .models import Administradores, Alumnos, Organizadores
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     rol = serializers.CharField(write_only=True, required=False)
+    username = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = User

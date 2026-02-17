@@ -22,27 +22,27 @@ from .views import organizador
 from .views import users
 
 urlpatterns = [
-    #Create Admin
-        path('admin/', users.AdminView.as_view()),
-    #Admin Data
-        path('lista-admins/', users.AdminAll.as_view()),
-    #Edit Admin
-        path('admins-edit/', users.AdminsViewEdit.as_view()),
-    #Create Alumno
-        path('alumnos/', alumnos.AlumnosView.as_view()),
-    #Alumno Data
-        path('lista-alumnos/', alumnos.AlumnosAll.as_view()),
-    #Edit Alumno
-        path('alumnos-edit/', alumnos.AlumnosViewEdit.as_view()),
-    #Create Maestro
-        path('organizadores/', organizador.OrganizadoresView.as_view()),
-    #Maestro Data
-        path('lista-organizadores/', organizador.OrganizadorAll.as_view()),
-    #Edit Maestro
-        path('organizadores-edit/', organizador.OrganizadoresViewEdit.as_view()),
-    #Login
-        path('token/', auth.CustomAuthToken.as_view()),
-    #Logout
-        path('logout/', auth.Logout.as_view()),
 
+    # Django admin
+    path('admin/', admin.site.urls),
+
+    # Authentication
+    path('auth/login/', auth.CustomAuthToken.as_view(), name='auth-login'),
+    path('auth/logout/', auth.Logout.as_view(), name='auth-logout'),
+
+    # Administradores / Usuarios
+    path('admins/', users.AdminAll.as_view(), name='admins-list'),
+    path('admins/detail/', users.AdminView.as_view(), name='admins-detail'),
+    path('admins/edit/', users.AdminsViewEdit.as_view(), name='admins-edit'),
+    path('users/register/', users.register_user, name='users-register'),
+
+    # Organizadores
+    path('organizadores/', organizador.OrganizadorAll.as_view(), name='organizadores-list'),
+    path('organizadores/detail/', organizador.OrganizadoresView.as_view(), name='organizadores-detail'),
+    path('organizadores/edit/', organizador.OrganizadoresViewEdit.as_view(), name='organizadores-edit'),
+
+    # Alumnos
+    path('alumnos/', alumnos.AlumnosAll.as_view(), name='alumnos-list'),
+    path('alumnos/detail/', alumnos.AlumnosView.as_view(), name='alumnos-detail'),
+    path('alumnos/edit/', alumnos.AlumnosViewEdit.as_view(), name='alumnos-edit'),
 ]
