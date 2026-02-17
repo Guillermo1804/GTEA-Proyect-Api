@@ -12,14 +12,15 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import JSONParser
 from rest_framework.reverse import reverse
 from rest_framework import viewsets
 from django.shortcuts import get_object_or_404
 from django.core import serializers
 from django.utils.html import strip_tags
 from django.contrib.auth import authenticate, login
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
@@ -29,6 +30,10 @@ from django.template.loader import render_to_string
 import string
 import random
 import json
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class AdminAll(generics.CreateAPIView):
     #Esta linea se usa para pedir el token de autenticación de inicio de sesión
@@ -38,6 +43,7 @@ class AdminAll(generics.CreateAPIView):
         lista = AdminSerializer(admin, many=True).data
         
         return Response(lista, 200)
+
 
 class AdminView(generics.CreateAPIView):
     #Obtener usuario por ID
@@ -102,6 +108,7 @@ class AdminView(generics.CreateAPIView):
 
         return Response(user.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class AdminsViewEdit(generics.CreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     #Contar el total de cada tipo de usuarios
@@ -145,3 +152,25 @@ class AdminsViewEdit(generics.CreateAPIView):
             return Response({"details": "Administrador eliminado"})
         except Exception as e:
             return Response({"details": "Algo pasó al eliminar"})
+
+
+# --- register_user endpoint (minimal, for debugging incoming payloads) ---
+@api_view(['POST'])
+@parser_classes([JSONParser])
+def register_user(request):
+    """Register a user and log incoming request payloads for debugging."""
+    logger.info("RAW BODY: %s", request.body)
+    logger.info("PARSED DATA: %s", request.data)
+    logger.info("REQUEST.POST: %s", request.POST)
+
+    username = request.data.get('username') or request.data.get('email') or request.POST.get('username')
+    password = request.data.get('password') or request.POST.get('password')
+
+    if not username or not password:
+        return Response({'detail': 'username and password required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if User.objects.filter(username=username).exists():
+        return Response({'detail': 'user already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = User.objects.create_user(username=username, password=password)
+    return Response({'id': user.id, 'username': user.username}, status=status.HTTP_201_CREATED)
