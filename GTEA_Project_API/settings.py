@@ -84,7 +84,7 @@ DATABASES = {
         'USER': 'root',               # Usuario por defecto de XAMPP
         'PASSWORD': '',               # En XAMPP, el root suele no tener contraseña
         'HOST': '127.0.0.1',          # O 'localhost'
-        'PORT': '3306',               # Puerto por defecto de MySQL
+        'PORT': '3307',               # Puerto por defecto de MySQL
     }
 }
 
