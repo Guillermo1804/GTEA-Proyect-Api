@@ -5,6 +5,7 @@ from rest_framework import permissions, generics, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 import logging
+from ..permissions import IsAdminOrReadOnly, IsAdminOrAuthenticated
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class SedesAll(generics.CreateAPIView):
     """GET  /sedes/  → lista de sedes activas
        POST /sedes/  → crear nueva sede
     """
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrReadOnly,)
 
     def get(self, request, *args, **kwargs):
         sedes = Sedes.objects.filter(activa=True).order_by("nombre")
@@ -35,7 +36,7 @@ class SedesAll(generics.CreateAPIView):
 
 class SedesDetail(generics.CreateAPIView):
     """GET /sedes/detail/?id={id}  → obtener sede por ID"""
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrReadOnly,)
 
     def get(self, request, *args, **kwargs):
         sede = get_object_or_404(Sedes, id=request.GET.get("id"))
@@ -47,7 +48,7 @@ class SedesEdit(generics.CreateAPIView):
     """PUT    /sedes/edit/?id={id}  → editar sede
        DELETE /sedes/edit/?id={id}  → desactivar sede (soft delete)
     """
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrReadOnly,)
 
     def put(self, request, *args, **kwargs):
         sede = get_object_or_404(Sedes, id=request.data.get("id") or request.GET.get("id"))
@@ -83,7 +84,7 @@ class AulasAll(generics.CreateAPIView):
     """GET  /aulas/?sede_id={id}  → lista de aulas (filtro opcional por sede)
        POST /aulas/               → crear nueva aula
     """
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         sede_id = request.GET.get("sede_id")
@@ -110,7 +111,7 @@ class AulasEdit(generics.CreateAPIView):
     """PUT    /aulas/edit/?id={id}  → editar aula
        DELETE /aulas/edit/?id={id}  → eliminar aula
     """
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
 
     def put(self, request, *args, **kwargs):
         aula = get_object_or_404(Aulas, id=request.data.get("id") or request.GET.get("id"))

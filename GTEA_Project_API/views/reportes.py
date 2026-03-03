@@ -5,11 +5,12 @@ from django.db.models import Count, Q
 import logging
 
 logger = logging.getLogger(__name__)
+from ..permissions import IsAdminOrAuthenticated
 
 
 class ReportesResumen(generics.CreateAPIView):
     """GET /reportes/resumen/  → métricas generales para dashboard de reportes"""
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         total_eventos = Eventos.objects.count()

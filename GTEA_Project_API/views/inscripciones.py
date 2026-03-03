@@ -5,13 +5,14 @@ from rest_framework import permissions, generics, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 import logging
+from ..permissions import IsAdminOrAuthenticated
 
 logger = logging.getLogger(__name__)
 
 
 class InscripcionesAll(generics.CreateAPIView):
     """POST /inscripciones/  → inscribirse a un evento"""
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         """Listar inscripciones (filtrable por evento_id o alumno_id)."""
@@ -65,7 +66,7 @@ class InscripcionesAll(generics.CreateAPIView):
 
 class InscripcionesListaEspera(generics.CreateAPIView):
     """POST /inscripciones/lista-espera/  → inscribirse a la lista de espera"""
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
@@ -91,7 +92,7 @@ class InscripcionesListaEspera(generics.CreateAPIView):
 
 class InscripcionesCancel(generics.CreateAPIView):
     """DELETE /inscripciones/cancel/?evento_id={id}&alumno_id={id}  → cancelar inscripción"""
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
 
     def delete(self, request, *args, **kwargs):
         evento_id = request.GET.get("evento_id")

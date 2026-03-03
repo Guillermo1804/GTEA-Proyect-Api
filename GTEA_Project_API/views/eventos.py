@@ -5,6 +5,7 @@ from rest_framework import permissions, generics, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 import logging
+from ..permissions import IsAdminOrAuthenticated
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ class EventosAll(generics.CreateAPIView):
     """GET  /eventos/  → lista de eventos
        POST /eventos/  → crear nuevo evento
     """
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         eventos = Eventos.objects.all().order_by("-fecha_inicio")
@@ -68,7 +69,7 @@ class EventosAll(generics.CreateAPIView):
 
 class EventosDetail(generics.CreateAPIView):
     """GET /eventos/detail/?id={id}  → obtener evento por ID"""
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         evento = get_object_or_404(Eventos, id=request.GET.get("id"))
@@ -80,7 +81,7 @@ class EventosEdit(generics.CreateAPIView):
     """PUT    /eventos/edit/?id={id}  → editar evento
        DELETE /eventos/edit/?id={id}  → eliminar (cancelar) evento
     """
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
 
     def put(self, request, *args, **kwargs):
         evento_id = request.data.get("id") or request.GET.get("id")

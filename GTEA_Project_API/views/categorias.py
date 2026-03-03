@@ -4,16 +4,14 @@ from ..models import Categorias
 from rest_framework import permissions, generics, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-import logging
-
-logger = logging.getLogger(__name__)
+from ..permissions import IsAdminOrReadOnly
 
 
 class CategoriasAll(generics.CreateAPIView):
     """GET  /categorias/  → lista de categorías activas
        POST /categorias/  → crear nueva categoría
     """
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrReadOnly,)
 
     def get(self, request, *args, **kwargs):
         categorias = Categorias.objects.filter(activa=True).order_by("nombre")
@@ -31,7 +29,7 @@ class CategoriasAll(generics.CreateAPIView):
 
 class CategoriasDetail(generics.CreateAPIView):
     """GET /categorias/detail/?id={id}  → obtener categoría por ID"""
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrReadOnly,)
 
     def get(self, request, *args, **kwargs):
         categoria = get_object_or_404(Categorias, id=request.GET.get("id"))
@@ -43,7 +41,7 @@ class CategoriasEdit(generics.CreateAPIView):
     """PUT    /categorias/edit/?id={id}  → editar categoría
        DELETE /categorias/edit/?id={id}  → desactivar categoría (soft delete)
     """
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrReadOnly,)
 
     def put(self, request, *args, **kwargs):
         categoria = get_object_or_404(Categorias, id=request.data.get("id") or request.GET.get("id"))

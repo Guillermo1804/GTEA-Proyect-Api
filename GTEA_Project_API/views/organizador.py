@@ -6,6 +6,7 @@ from GTEA_Project_API.models import *
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication, TokenAuthentication
 from rest_framework.generics import CreateAPIView, DestroyAPIView, UpdateAPIView
 from rest_framework import permissions
+from ..permissions import IsAdminOrAuthenticated
 from rest_framework import generics
 from rest_framework import status
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -34,7 +35,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class OrganizadorAll(generics.CreateAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
     def get(self, request, *args, **kwargs):
         organizador = Organizadores.objects.filter(user__is_active = 1).order_by("id")
         organizador = OrganizadorSerializer(organizador, many=True).data
@@ -96,7 +97,7 @@ class OrganizadoresView(generics.CreateAPIView):
 
 #Se tiene que modificar la parte de edicion y eliminar
 class OrganizadoresViewEdit(generics.CreateAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
     def put(self, request, *args, **kwargs):
         # iduser=request.data["id"]
         organizador = get_object_or_404(Organizadores, id=request.data["id"])
