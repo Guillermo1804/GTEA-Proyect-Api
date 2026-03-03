@@ -129,7 +129,7 @@ class AdminsViewEdit(generics.CreateAPIView):
         lista_alumnos = AlumnoSerializer(alumnos, many=True).data
         total_alumnos = len(lista_alumnos)
 
-        return Response({'admins': total_admins, 'organizadores': total_organizadores, 'alumnos:':total_alumnos }, 200)
+        return Response({'admins': total_admins, 'organizadores': total_organizadores, 'alumnos': total_alumnos}, 200)
     
     #Editar administrador
     def put(self, request, *args, **kwargs):
