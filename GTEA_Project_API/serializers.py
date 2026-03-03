@@ -93,6 +93,7 @@ class EventoSerializer(serializers.ModelSerializer):
     aula_nombre = serializers.CharField(source="aula.nombre", read_only=True, default='')
     organizador_nombre = serializers.SerializerMethodField()
     inscritos = serializers.IntegerField(read_only=True)
+    imagen_portada = serializers.URLField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = Eventos

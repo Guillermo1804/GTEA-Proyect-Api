@@ -60,10 +60,16 @@ class EventosAll(generics.CreateAPIView):
             if fk in data and (data[fk] == '' or data[fk] is None):
                 data[fk] = None
 
+        # Sanitizar imagen_portada: convertir null / valores no-string a cadena vacía
+        img = data.get('imagen_portada')
+        if img is None or not isinstance(img, str):
+            data['imagen_portada'] = ''
+
         serializer = EventoSerializer(data=data)
         if serializer.is_valid():
             evento = serializer.save()
             return Response({"evento_created_id": evento.id, "success": True}, status=status.HTTP_201_CREATED)
+        logger.error("EventoSerializer errors: %s | data received: %s", serializer.errors, data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
