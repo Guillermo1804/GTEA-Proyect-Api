@@ -33,11 +33,12 @@ import json
 import logging
 
 logger = logging.getLogger(__name__)
+from ..permissions import IsAdminOrAuthenticated
 
 
 class AdminAll(generics.CreateAPIView):
     #Esta linea se usa para pedir el token de autenticación de inicio de sesión
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
     def get(self, request, *args, **kwargs):
         admin = Administradores.objects.filter(user__is_active = 1).order_by("id")
         lista = AdminSerializer(admin, many=True).data
@@ -104,13 +105,21 @@ class AdminView(generics.CreateAPIView):
                                                    clave_admin=payload.get("clave_admin"))
             admin.save()
 
-            return Response({"admin_created_id": admin.id}, 201)
+            # create token for admin so client can authenticate immediately
+            try:
+                token_obj, _ = Token.objects.get_or_create(user=user)
+                logger.info('Admin created: user=%s id=%s groups=%s', user.username, user.id, list(user.groups.values_list('name', flat=True)))
+                logger.info('Admin token created: %s', token_obj.key)
+                return Response({"admin_created_id": admin.id, "token": token_obj.key}, 201)
+            except Exception:
+                logger.info('Admin created without token: user=%s id=%s', user.username, user.id)
+                return Response({"admin_created_id": admin.id}, 201)
 
         return Response(user.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AdminsViewEdit(generics.CreateAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
     #Contar el total de cada tipo de usuarios
     def get(self, request, *args, **kwargs):
         #Obtener total de admins
@@ -129,7 +138,7 @@ class AdminsViewEdit(generics.CreateAPIView):
         lista_alumnos = AlumnoSerializer(alumnos, many=True).data
         total_alumnos = len(lista_alumnos)
 
-        return Response({'admins': total_admins, 'organizadores': total_organizadores, 'alumnos:':total_alumnos }, 200)
+        return Response({'admins': total_admins, 'organizadores': total_organizadores, 'alumnos': total_alumnos}, 200)
     
     #Editar administrador
     def put(self, request, *args, **kwargs):
@@ -216,5 +225,28 @@ def register_user(request):
             clave_admin = request.data.get('clave_admin')
             admin = Administradores.objects.create(user=user, clave_admin=clave_admin)
             profile_id = admin.id
+    # If the new user is an admin, create and return a token so the client can authenticate
+    response_payload = {'detail': 'user created', 'role': role, 'profile_id': profile_id}
+    if role == 'administrador':
+        try:
+            token_obj, _ = Token.objects.get_or_create(user=user)
+            response_payload['token'] = token_obj.key
+            logger.info('New admin registered: user=%s id=%s groups=%s', user.username, user.id, list(user.groups.values_list('name', flat=True)))
+            logger.info('Token for new admin: %s', token_obj.key)
+        except Exception:
+            logger.info('New admin registered without token: user=%s id=%s', user.username, user.id)
 
-    return Response({'detail': 'user created', 'role': role, 'profile_id': profile_id}, status=status.HTTP_201_CREATED)
+    # Log created user/profile (mask password)
+    try:
+        safe_user = {'id': user.id, 'username': user.username, 'email': user.email, 'is_active': user.is_active}
+        logger.info('User created: %s', safe_user)
+        if role == 'alumno':
+            logger.info('Alumno profile created: %s', {'id': alumno.id, 'user_id': alumno.user.id})
+        elif role == 'organizador':
+            logger.info('Organizador profile created: %s', {'id': organizador.id, 'user_id': organizador.user.id})
+        else:
+            logger.info('Administrador profile created: %s', {'id': admin.id, 'user_id': admin.user.id})
+    except Exception:
+        logger.info('Created user/profile logging failed')
+
+    return Response(response_payload, status=status.HTTP_201_CREATED)

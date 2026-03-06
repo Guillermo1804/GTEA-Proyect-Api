@@ -30,11 +30,12 @@ import string
 import random
 import json
 import logging
-
+#Finalizacion de Sprint 2
 logger = logging.getLogger(__name__)
+from ..permissions import IsAdminOrAuthenticated
 
 class AlumnosAll(generics.CreateAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAdminOrAuthenticated,)
     def get(self, request, *args, **kwargs):
         alumnos = Alumnos.objects.filter(user__is_active = 1).order_by("id")
         lista = AlumnoSerializer(alumnos, many=True).data
@@ -97,7 +98,7 @@ class AlumnosView(generics.CreateAPIView):
 
    #Editar alumno
 class AlumnosViewEdit (generics.CreateAPIView):
-    permissions_classes = (permissions.IsAuthenticated)
+    permission_classes = (IsAdminOrAuthenticated,)
     def put(self, request, *args, **kwargs):
         # iduser=request.data["id"]
         alumno = get_object_or_404(Alumnos, id=request.data["id"])

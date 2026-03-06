@@ -20,6 +20,11 @@ from .views import alumnos
 from .views import auth
 from .views import organizador
 from .views import users
+from .views import categorias
+from .views import sedes
+from .views import eventos
+from .views import inscripciones
+from .views import reportes
 
 urlpatterns = [
 
@@ -45,4 +50,31 @@ urlpatterns = [
     path('alumnos/', alumnos.AlumnosAll.as_view(), name='alumnos-list'),
     path('alumnos/detail/', alumnos.AlumnosView.as_view(), name='alumnos-detail'),
     path('alumnos/edit/', alumnos.AlumnosViewEdit.as_view(), name='alumnos-edit'),
+
+    # Categorías
+    path('categorias/', categorias.CategoriasAll.as_view(), name='categorias-list'),
+    path('categorias/detail/', categorias.CategoriasDetail.as_view(), name='categorias-detail'),
+    path('categorias/edit/', categorias.CategoriasEdit.as_view(), name='categorias-edit'),
+
+    # Sedes
+    path('sedes/', sedes.SedesAll.as_view(), name='sedes-list'),
+    path('sedes/detail/', sedes.SedesDetail.as_view(), name='sedes-detail'),
+    path('sedes/edit/', sedes.SedesEdit.as_view(), name='sedes-edit'),
+
+    # Aulas
+    path('aulas/', sedes.AulasAll.as_view(), name='aulas-list'),
+    path('aulas/edit/', sedes.AulasEdit.as_view(), name='aulas-edit'),
+
+    # Eventos
+    path('eventos/', eventos.EventosAll.as_view(), name='eventos-list'),
+    path('eventos/detail/', eventos.EventosDetail.as_view(), name='eventos-detail'),
+    path('eventos/edit/', eventos.EventosEdit.as_view(), name='eventos-edit'),
+
+    # Inscripciones
+    path('inscripciones/', inscripciones.InscripcionesAll.as_view(), name='inscripciones-list'),
+    path('inscripciones/lista-espera/', inscripciones.InscripcionesListaEspera.as_view(), name='inscripciones-lista-espera'),
+    path('inscripciones/cancel/', inscripciones.InscripcionesCancel.as_view(), name='inscripciones-cancel'),
+
+    # Reportes
+    path('reportes/resumen/', reportes.ReportesResumen.as_view(), name='reportes-resumen'),
 ]
