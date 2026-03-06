@@ -30,7 +30,7 @@ import string
 import random
 import json
 import logging
-
+#Finalizacion de Sprint 2
 logger = logging.getLogger(__name__)
 from ..permissions import IsAdminOrAuthenticated
 
