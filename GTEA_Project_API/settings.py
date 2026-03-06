@@ -31,15 +31,21 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
+    'GTEA_Project_API',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -74,8 +80,12 @@ WSGI_APPLICATION = 'GTEA_Project_API.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'gtea_proyecto_api',  # El nombre exacto que pusiste en phpMyAdmin
+        'USER': 'root',               # Usuario por defecto de XAMPP
+        'PASSWORD': '',               # En XAMPP, el root suele no tener contraseña
+        'HOST': '127.0.0.1',          # O 'localhost'
+        'PORT': '3307',               # Puerto por defecto de MySQL
     }
 }
 
@@ -120,3 +130,52 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# CORS settings (development)
+# Allow the Angular dev server origin. For quick development you can set
+# CORS_ALLOW_ALL_ORIGINS = True, but prefer CORS_ALLOWED_ORIGINS in most cases.
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:4200',
+    'http://127.0.0.1:4200',
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Ensure INFO logs appear in the development console (keeps previous logging change)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
+
+# REST framework configuration: enable TokenAuthentication (for API tokens)
+# and SessionAuthentication (useful for browsable API / session-based auth).
+# Views already require `IsAuthenticated`, so ensure Token auth is available.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
