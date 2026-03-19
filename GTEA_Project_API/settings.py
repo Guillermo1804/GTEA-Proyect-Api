@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-t(gj*@j$izsz4$l*mw+4z*-yhkk-1l*pi0!z4i%62jo8ko6(&@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 # Application definition
@@ -172,10 +172,16 @@ LOGGING = {
 # Views already require `IsAuthenticated`, so ensure Token auth is available.
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+        'GTEA_Project_API.authentication.CookieTokenAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
 }
+
+# Auth token cookie settings (development defaults)
+# NOTE: If you later deploy behind HTTPS, set AUTH_TOKEN_COOKIE_SECURE=True
+AUTH_TOKEN_COOKIE_NAME = 'auth_token'
+AUTH_TOKEN_COOKIE_SECURE = False
+AUTH_TOKEN_COOKIE_SAMESITE = 'Lax'
+AUTH_TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 days

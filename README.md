@@ -147,7 +147,11 @@ python manage.py runserver 8000
 
 ## 🔐 Arquitectura de Autenticación
 
-El backend utiliza **Token Authentication** de DRF. Todos los endpoints (excepto login y registro) están protegidos y requieren un token válido.
+El backend utiliza **Token Authentication** de DRF.
+
+Además, en desarrollo el token se entrega también como **cookie HttpOnly** (`auth_token`) al **registrar** o **iniciar sesión**, para evitar errores por olvidar enviar el header `Authorization`.
+
+Todos los endpoints (excepto login y registro) están protegidos y requieren un token válido (por cookie o por header).
 
 ### Flujo de Autenticación
 
@@ -165,6 +169,11 @@ El backend utiliza **Token Authentication** de DRF. Todos los endpoints (excepto
 
 ```http
 Authorization: Token <tu_token>
+
+> [!TIP]
+> Si consumes el API desde el navegador (Angular), el token también viaja por cookie `HttpOnly` si:
+> - Usas el mismo hostname (recomendado: `localhost`) para front y API
+> - Envías requests con credenciales (`withCredentials: true`)
 ```
 
 ### Endpoints de Autenticación
@@ -174,6 +183,18 @@ Authorization: Token <tu_token>
 | POST   | `/auth/login/`   | Obtener token con credenciales           | ❌   |
 | POST   | `/auth/logout/`  | Invalidar token activo                   | ✅   |
 | POST   | `/users/register/`| Registro de nuevo usuario (rol automático)| ❌ |
+
+### Cookie de autenticación (dev)
+
+- Nombre: `auth_token` (HttpOnly)
+- Se setea en:
+  - `POST /users/register/`
+  - `POST /auth/login/`
+- Se limpia en:
+  - `GET /auth/logout/`
+
+> [!IMPORTANT]
+> No mezcles `localhost` con `127.0.0.1` (las cookies no se comparten entre ambos).
 
 > [!NOTE]
 > El login retorna el token junto con información del usuario como `user_id`, `role`, `first_name`, `last_name` y `email`.
