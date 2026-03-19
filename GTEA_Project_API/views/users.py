@@ -154,13 +154,22 @@ class AdminsViewEdit(generics.CreateAPIView):
 
         return Response(user,200)
 
-    def delete(serlf, request, *args, **kwargs):
-        admin= get_object_or_404(Administradores, id=request.GET.get("id"))
+    @transaction.atomic
+    def delete(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__iexact='administrador').exists():
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        admin_id = request.GET.get("id")
+        if not admin_id:
+            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        admin = get_object_or_404(Administradores, id=admin_id)
         try:
             admin.user.delete()
-            return Response({"details": "Administrador eliminado"})
-        except Exception as e:
-            return Response({"details": "Algo pasó al eliminar"})
+            return Response({"details": "Administrador eliminado"}, status=status.HTTP_200_OK)
+        except Exception:
+            logger.exception("Error deleting admin id=%s by user_id=%s", admin_id, getattr(request.user, 'id', None))
+            return Response({"detail": "Error al eliminar administrador"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # --- register_user endpoint (minimal, for debugging incoming payloads) ---

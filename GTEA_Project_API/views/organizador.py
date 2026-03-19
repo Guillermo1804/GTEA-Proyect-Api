@@ -111,10 +111,19 @@ class OrganizadoresViewEdit(generics.CreateAPIView):
 
         return Response(user,200)
     
+    @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        organizador= get_object_or_404(Organizadores, id=request.GET.get("id"))
+        if not request.user.groups.filter(name__iexact='administrador').exists():
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        organizador_id = request.GET.get("id")
+        if not organizador_id:
+            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        organizador = get_object_or_404(Organizadores, id=organizador_id)
         try:
             organizador.user.delete()
-            return Response({"details": "Organizador eliminado"})
-        except Exception as e:
-            return Response({"details": "Algo pasó al eliminar"})
+            return Response({"details": "Organizador eliminado"}, status=status.HTTP_200_OK)
+        except Exception:
+            logger.exception("Error deleting organizador id=%s by user_id=%s", organizador_id, getattr(request.user, 'id', None))
+            return Response({"detail": "Error al eliminar organizador"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

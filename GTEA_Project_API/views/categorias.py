@@ -5,6 +5,9 @@ from rest_framework import permissions, generics, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from ..permissions import IsAdminOrReadOnly
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CategoriasAll(generics.CreateAPIView):
@@ -55,11 +58,17 @@ class CategoriasEdit(generics.CreateAPIView):
         data = CategoriaSerializer(categoria, many=False).data
         return Response(data, 200)
 
+    @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        categoria = get_object_or_404(Categorias, id=request.GET.get("id"))
+        categoria_id = request.GET.get("id")
+        if not categoria_id:
+            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        categoria = get_object_or_404(Categorias, id=categoria_id)
         try:
             categoria.activa = False
             categoria.save()
-            return Response({"details": "Categoría desactivada"})
-        except Exception as e:
-            return Response({"details": "Algo pasó al eliminar"})
+            return Response({"details": "Categoría desactivada"}, status=status.HTTP_200_OK)
+        except Exception:
+            logger.exception("Error soft-deleting categoria id=%s by user_id=%s", categoria_id, getattr(request.user, 'id', None))
+            return Response({"detail": "Error al desactivar categoría"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
