@@ -94,27 +94,51 @@ class InscripcionesCancel(generics.CreateAPIView):
     """DELETE /inscripciones/cancel/?evento_id={id}&alumno_id={id}  → cancelar inscripción"""
     permission_classes = (IsAdminOrAuthenticated,)
 
+    @transaction.atomic
     def delete(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__iexact='administrador').exists():
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
         evento_id = request.GET.get("evento_id")
         alumno_id = request.GET.get("alumno_id")
 
         if not evento_id or not alumno_id:
             return Response({"detail": "evento_id y alumno_id son requeridos"}, status=400)
 
-        inscripcion = Inscripciones.objects.filter(evento_id=evento_id, alumno_id=alumno_id).first()
+        inscripcion = Inscripciones.objects.select_for_update().filter(evento_id=evento_id, alumno_id=alumno_id).first()
         if not inscripcion:
             return Response({"detail": "Inscripción no encontrada"}, status=404)
 
         tipo_anterior = inscripcion.tipo
-        inscripcion.delete()
+        try:
+            inscripcion.delete()
+        except Exception:
+            logger.exception(
+                "Error canceling inscripcion evento_id=%s alumno_id=%s by user_id=%s",
+                evento_id,
+                alumno_id,
+                getattr(request.user, 'id', None),
+            )
+            return Response({"detail": "Error al cancelar inscripción"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Si era inscrito y hay lista de espera, promover al primero
         if tipo_anterior == 'inscrito':
-            siguiente = Inscripciones.objects.filter(
-                evento_id=evento_id, tipo='lista_espera'
-            ).order_by("creation").first()
+            siguiente = (
+                Inscripciones.objects.select_for_update()
+                .filter(evento_id=evento_id, tipo='lista_espera')
+                .order_by("creation")
+                .first()
+            )
             if siguiente:
                 siguiente.tipo = 'inscrito'
-                siguiente.save()
+                try:
+                    siguiente.save()
+                except Exception:
+                    logger.exception(
+                        "Error promoting waitlist evento_id=%s after cancel by user_id=%s",
+                        evento_id,
+                        getattr(request.user, 'id', None),
+                    )
+                    return Response({"detail": "Error al promover lista de espera"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response({"detail": "Inscripción cancelada", "estado": "cancelado"})
+        return Response({"detail": "Inscripción cancelada", "estado": "cancelado"}, status=status.HTTP_200_OK)

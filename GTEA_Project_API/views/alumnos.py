@@ -45,6 +45,12 @@ class AlumnosAll(generics.CreateAPIView):
 class AlumnosView(generics.CreateAPIView):
     #Obtener usuario por ID
     # permission_classes = (permissions.IsAuthenticated,)
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+    
     def get(self, request, *args, **kwargs):
         alumno = get_object_or_404(Alumnos, id = request.GET.get("id"))
         alumno = AlumnoSerializer(alumno, many=False).data
@@ -112,10 +118,19 @@ class AlumnosViewEdit (generics.CreateAPIView):
 
         return Response(user,200)
     
-    def delete(serlf, request, *args, **kwargs):
-        alumno= get_object_or_404(Alumnos, id=request.GET.get("id"))
+    @transaction.atomic
+    def delete(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__iexact='administrador').exists():
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        alumno_id = request.GET.get("id")
+        if not alumno_id:
+            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        alumno = get_object_or_404(Alumnos, id=alumno_id)
         try:
             alumno.user.delete()
-            return Response({"details": "Alumno eliminado"})
-        except Exception as e:
-            return Response({"details": "Algo pasó al eliminar"})
+            return Response({"details": "Alumno eliminado"}, status=status.HTTP_200_OK)
+        except Exception:
+            logger.exception("Error deleting alumno id=%s by user_id=%s", alumno_id, getattr(request.user, 'id', None))
+            return Response({"detail": "Error al eliminar alumno"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
