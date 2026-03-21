@@ -52,6 +52,11 @@ class AdminView(generics.CreateAPIView):
     # permission_classes = (permissions.IsAuthenticated,)
     serializer_class = UserSerializer
 
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
     def get_serializer_class(self):
         # Use AdminSerializer for GET (representation) and UserSerializer for POST (creation)
         if hasattr(self, 'request') and self.request.method == 'GET':

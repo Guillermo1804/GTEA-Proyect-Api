@@ -45,6 +45,11 @@ class OrganizadorAll(generics.CreateAPIView):
 class OrganizadoresView(generics.CreateAPIView):
     #Obtener usuario por ID
     # permission_classes = (permissions.IsAuthenticated,)
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+    
     def get(self, request, *args, **kwargs):
         organizador = get_object_or_404(Organizadores, id = request.GET.get("id"))
         organizador = OrganizadorSerializer(organizador, many=False).data
