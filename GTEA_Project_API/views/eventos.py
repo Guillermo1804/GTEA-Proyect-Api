@@ -136,11 +136,20 @@ class EventosEdit(generics.CreateAPIView):
         result = EventoSerializer(evento, many=False).data
         return Response(result, 200)
 
+    @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        evento = get_object_or_404(Eventos, id=request.GET.get("id"))
+        if not request.user.groups.filter(name__iexact='administrador').exists():
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        evento_id = request.GET.get("id")
+        if not evento_id:
+            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        evento = get_object_or_404(Eventos, id=evento_id)
         try:
             evento.status = 'Cancelado'
             evento.save()
-            return Response({"details": "Evento cancelado"})
-        except Exception as e:
-            return Response({"details": "Algo pasó al eliminar"})
+            return Response({"details": "Evento cancelado"}, status=status.HTTP_200_OK)
+        except Exception:
+            logger.exception("Error canceling evento id=%s by user_id=%s", evento_id, getattr(request.user, 'id', None))
+            return Response({"detail": "Error al cancelar evento"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

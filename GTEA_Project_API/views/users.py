@@ -12,7 +12,7 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.decorators import api_view, parser_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import JSONParser
 from rest_framework.reverse import reverse
 from rest_framework import viewsets
@@ -34,6 +34,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 from ..permissions import IsAdminOrAuthenticated
+from GTEA_Project_API.authentication import set_auth_token_cookie
 
 
 class AdminAll(generics.CreateAPIView):
@@ -50,6 +51,11 @@ class AdminView(generics.CreateAPIView):
     #Obtener usuario por ID
     # permission_classes = (permissions.IsAuthenticated,)
     serializer_class = UserSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def get_serializer_class(self):
         # Use AdminSerializer for GET (representation) and UserSerializer for POST (creation)
@@ -154,18 +160,28 @@ class AdminsViewEdit(generics.CreateAPIView):
 
         return Response(user,200)
 
-    def delete(serlf, request, *args, **kwargs):
-        admin= get_object_or_404(Administradores, id=request.GET.get("id"))
+    @transaction.atomic
+    def delete(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__iexact='administrador').exists():
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        admin_id = request.GET.get("id")
+        if not admin_id:
+            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        admin = get_object_or_404(Administradores, id=admin_id)
         try:
             admin.user.delete()
-            return Response({"details": "Administrador eliminado"})
-        except Exception as e:
-            return Response({"details": "Algo pasó al eliminar"})
+            return Response({"details": "Administrador eliminado"}, status=status.HTTP_200_OK)
+        except Exception:
+            logger.exception("Error deleting admin id=%s by user_id=%s", admin_id, getattr(request.user, 'id', None))
+            return Response({"detail": "Error al eliminar administrador"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # --- register_user endpoint (minimal, for debugging incoming payloads) ---
 @api_view(['POST'])
 @parser_classes([JSONParser])
+@permission_classes([permissions.AllowAny])
 def register_user(request):
     """Register a user.
 
@@ -225,16 +241,20 @@ def register_user(request):
             clave_admin = request.data.get('clave_admin')
             admin = Administradores.objects.create(user=user, clave_admin=clave_admin)
             profile_id = admin.id
-    # If the new user is an admin, create and return a token so the client can authenticate
+    # Always create and return a token (cookie-based auth)
     response_payload = {'detail': 'user created', 'role': role, 'profile_id': profile_id}
-    if role == 'administrador':
-        try:
-            token_obj, _ = Token.objects.get_or_create(user=user)
-            response_payload['token'] = token_obj.key
-            logger.info('New admin registered: user=%s id=%s groups=%s', user.username, user.id, list(user.groups.values_list('name', flat=True)))
-            logger.info('Token for new admin: %s', token_obj.key)
-        except Exception:
-            logger.info('New admin registered without token: user=%s id=%s', user.username, user.id)
+    token_obj = None
+    try:
+        token_obj, _ = Token.objects.get_or_create(user=user)
+        response_payload['token'] = token_obj.key
+        logger.info('New user registered: user=%s id=%s groups=%s', user.username, user.id, list(user.groups.values_list('name', flat=True)))
+        logger.info('Token for new user: %s', token_obj.key)
+    except Exception:
+        logger.info('New user registered without token: user=%s id=%s', user.username, user.id)
+
+    response = Response(response_payload, status=status.HTTP_201_CREATED)
+    if token_obj is not None:
+        set_auth_token_cookie(response, token_obj.key)
 
     # Log created user/profile (mask password)
     try:
@@ -249,4 +269,4 @@ def register_user(request):
     except Exception:
         logger.info('Created user/profile logging failed')
 
-    return Response(response_payload, status=status.HTTP_201_CREATED)
+    return response

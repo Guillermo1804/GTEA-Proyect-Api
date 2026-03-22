@@ -66,14 +66,20 @@ class SedesEdit(generics.CreateAPIView):
         data = SedeSerializer(sede, many=False).data
         return Response(data, 200)
 
+    @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        sede = get_object_or_404(Sedes, id=request.GET.get("id"))
+        sede_id = request.GET.get("id")
+        if not sede_id:
+            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        sede = get_object_or_404(Sedes, id=sede_id)
         try:
             sede.activa = False
             sede.save()
-            return Response({"details": "Sede desactivada"})
-        except Exception as e:
-            return Response({"details": "Algo pasó al eliminar"})
+            return Response({"details": "Sede desactivada"}, status=status.HTTP_200_OK)
+        except Exception:
+            logger.exception("Error soft-deleting sede id=%s by user_id=%s", sede_id, getattr(request.user, 'id', None))
+            return Response({"detail": "Error al desactivar sede"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ═══════════════════════════════════════════════
@@ -128,10 +134,19 @@ class AulasEdit(generics.CreateAPIView):
         data = AulaSerializer(aula, many=False).data
         return Response(data, 200)
 
+    @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        aula = get_object_or_404(Aulas, id=request.GET.get("id"))
+        if not request.user.groups.filter(name__iexact='administrador').exists():
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        aula_id = request.GET.get("id")
+        if not aula_id:
+            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
+        aula = get_object_or_404(Aulas, id=aula_id)
         try:
             aula.delete()
-            return Response({"details": "Aula eliminada"})
-        except Exception as e:
-            return Response({"details": "Algo pasó al eliminar"})
+            return Response({"details": "Aula eliminada"}, status=status.HTTP_200_OK)
+        except Exception:
+            logger.exception("Error deleting aula id=%s by user_id=%s", aula_id, getattr(request.user, 'id', None))
+            return Response({"detail": "Error al eliminar aula"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

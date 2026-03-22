@@ -29,6 +29,8 @@ from django.template.loader import render_to_string
 import string
 import random
 
+from GTEA_Project_API.authentication import clear_auth_token_cookie, set_auth_token_cookie
+
 class CustomAuthToken(ObtainAuthToken):
 
     def post(self, request, *args, **kwargs):
@@ -38,12 +40,12 @@ class CustomAuthToken(ObtainAuthToken):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         if user.is_active:
-            roles = user.groups.all()
-            role_names = []
-            for role in roles:
-                role_names.append(role.name)
-            #Si solo es un rol especifico asignamos el elemento 0
-            role_names = role_names[0]
+            roles = list(user.groups.values_list('name', flat=True))
+            if not roles:
+                return Response({"detail": "User has no role/group assigned"}, status=status.HTTP_403_FORBIDDEN)
+
+            # Si solo es un rol especifico asignamos el elemento 0
+            role_names = roles[0]
 
             token, created = Token.objects.get_or_create(user=user)
 
@@ -52,18 +54,24 @@ class CustomAuthToken(ObtainAuthToken):
                 alumno = AlumnoSerializer(alumno).data
                 alumno["token"] = token.key
                 alumno["rol"] = "alumno"
-                return Response(alumno,200)
+                response = Response(alumno, 200)
+                set_auth_token_cookie(response, token.key)
+                return response
             if role_names == 'organizador':
                 organizador = Organizadores.objects.filter(user=user).first()
                 organizador = OrganizadorSerializer(organizador).data
                 organizador["token"] = token.key
                 organizador["rol"] = "organizador"
-                return Response(organizador,200)
+                response = Response(organizador, 200)
+                set_auth_token_cookie(response, token.key)
+                return response
             if role_names == 'administrador':
                 user = UserSerializer(user, many=False).data
                 user['token'] = token.key
                 user["rol"] = "administrador"
-                return Response(user,200)
+                response = Response(user, 200)
+                set_auth_token_cookie(response, token.key)
+                return response
             else:
                 return Response({"details":"Forbidden"},403)
                 pass
@@ -84,7 +92,11 @@ class Logout(generics.GenericAPIView):
             token = Token.objects.get(user=user)
             token.delete()
 
-            return Response({'logout':True})
+            response = Response({'logout': True})
+            clear_auth_token_cookie(response)
+            return response
 
 
-        return Response({'logout': False})
+        response = Response({'logout': False})
+        clear_auth_token_cookie(response)
+        return response
