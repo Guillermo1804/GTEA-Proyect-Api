@@ -29,13 +29,19 @@ class InscripcionesAll(generics.CreateAPIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         evento_id = request.data.get("evento_id")
-        alumno_id = request.data.get("alumno_id")
 
-        if not evento_id or not alumno_id:
-            return Response({"detail": "evento_id y alumno_id son requeridos"}, status=400)
+        if not evento_id:
+            return Response({"detail": "evento_id es requerido"}, status=400)
+
+        try:
+            alumno = Alumnos.objects.get(user=request.user)
+        except Alumnos.DoesNotExist:
+            return Response(
+                {"detail": "El usuario autenticado no tiene perfil de alumno."},
+                status=403
+            )
 
         evento = get_object_or_404(Eventos, id=evento_id)
-        alumno = get_object_or_404(Alumnos, id=alumno_id)
 
         # Verificar si ya está inscrito
         if Inscripciones.objects.filter(evento=evento, alumno=alumno).exists():
