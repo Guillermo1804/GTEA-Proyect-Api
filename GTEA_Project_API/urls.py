@@ -29,52 +29,54 @@ from .views import reportes
 urlpatterns = [
 
     # Django admin
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
 
-    # Authentication
-    path('auth/login/', auth.CustomAuthToken.as_view(), name='auth-login'),
-    path('auth/logout/', auth.Logout.as_view(), name='auth-logout'),
+    # Auth (sistema-fcc-api style)
+    path('token/', auth.CustomAuthToken.as_view(), name='auth-token'),
+    path('logout/', auth.Logout.as_view(), name='auth-logout'),
 
-    # Administradores / Usuarios
-    path('admins/', users.AdminAll.as_view(), name='admins-list'),
-    path('admins/detail/', users.AdminView.as_view(), name='admins-detail'),
-    path('admins/edit/', users.AdminsViewEdit.as_view(), name='admins-edit'),
-    path('users/register/', users.register_user, name='users-register'),
+    # Administradores
+    path('admin/', users.AdminView.as_view(), name='admin-create-detail'),
+    path('lista-admins/', users.AdminAll.as_view(), name='admins-list'),
+    path('admins-edit/', users.AdminsViewEdit.as_view(), name='admins-edit'),
 
     # Organizadores
-    path('organizadores/', organizador.OrganizadorAll.as_view(), name='organizadores-list'),
-    path('organizadores/detail/', organizador.OrganizadoresView.as_view(), name='organizadores-detail'),
-    path('organizadores/edit/', organizador.OrganizadoresViewEdit.as_view(), name='organizadores-edit'),
+    path('organizadores/', organizador.OrganizadoresView.as_view(), name='organizadores-create-detail'),
+    path('lista-organizadores/', organizador.OrganizadorAll.as_view(), name='organizadores-list'),
+    path('organizadores-edit/', organizador.OrganizadoresViewEdit.as_view(), name='organizadores-edit'),
 
     # Alumnos
-    path('alumnos/', alumnos.AlumnosAll.as_view(), name='alumnos-list'),
-    path('alumnos/detail/', alumnos.AlumnosView.as_view(), name='alumnos-detail'),
-    path('alumnos/edit/', alumnos.AlumnosViewEdit.as_view(), name='alumnos-edit'),
+    path('alumnos/', alumnos.AlumnosView.as_view(), name='alumnos-create-detail'),
+    path('lista-alumnos/', alumnos.AlumnosAll.as_view(), name='alumnos-list'),
+    path('alumnos-edit/', alumnos.AlumnosViewEdit.as_view(), name='alumnos-edit'),
 
     # Categorías
-    path('categorias/', categorias.CategoriasAll.as_view(), name='categorias-list'),
-    path('categorias/detail/', categorias.CategoriasDetail.as_view(), name='categorias-detail'),
-    path('categorias/edit/', categorias.CategoriasEdit.as_view(), name='categorias-edit'),
+    path('categoria/', categorias.CategoriasView.as_view(), name='categorias-create-detail'),
+    path('lista-categorias/', categorias.CategoriasAll.as_view(), name='categorias-list'),
+    path('categorias-edit/', categorias.CategoriasViewEdit.as_view(), name='categorias-edit'),
 
     # Sedes
-    path('sedes/', sedes.SedesAll.as_view(), name='sedes-list'),
-    path('sedes/detail/', sedes.SedesDetail.as_view(), name='sedes-detail'),
-    path('sedes/edit/', sedes.SedesEdit.as_view(), name='sedes-edit'),
+    path('sede/', sedes.SedesView.as_view(), name='sedes-create-detail'),
+    path('lista-sedes/', sedes.SedesAll.as_view(), name='sedes-list'),
+    path('sedes-edit/', sedes.SedesViewEdit.as_view(), name='sedes-edit'),
 
     # Aulas
-    path('aulas/', sedes.AulasAll.as_view(), name='aulas-list'),
-    path('aulas/edit/', sedes.AulasEdit.as_view(), name='aulas-edit'),
+    path('aula/', sedes.AulasView.as_view(), name='aulas-create-detail'),
+    path('lista-aulas/', sedes.AulasAll.as_view(), name='aulas-list'),
+    path('aulas-edit/', sedes.AulasViewEdit.as_view(), name='aulas-edit'),
 
     # Eventos
-    path('eventos/', eventos.EventosAll.as_view(), name='eventos-list'),
-    path('eventos/detail/', eventos.EventosDetail.as_view(), name='eventos-detail'),
-    path('eventos/edit/', eventos.EventosEdit.as_view(), name='eventos-edit'),
+    path('evento/', eventos.EventosView.as_view(), name='eventos-create-detail'),
+    path('lista-eventos/', eventos.EventosAll.as_view(), name='eventos-list'),
+    path('eventos-edit/', eventos.EventosViewEdit.as_view(), name='eventos-edit'),
 
     # Inscripciones
-    path('inscripciones/', inscripciones.InscripcionesAll.as_view(), name='inscripciones-list'),
-    path('inscripciones/lista-espera/', inscripciones.InscripcionesListaEspera.as_view(), name='inscripciones-lista-espera'),
-    path('inscripciones/cancel/', inscripciones.InscripcionesCancel.as_view(), name='inscripciones-cancel'),
+    path('inscripcion/', inscripciones.InscripcionesView.as_view(), name='inscripciones-create-detail'),
+    path('lista-inscripciones/', inscripciones.InscripcionesAll.as_view(), name='inscripciones-list'),
+    path('inscripciones-edit/', inscripciones.InscripcionesViewEdit.as_view(), name='inscripciones-edit'),
+    path('inscripciones-lista-espera/', inscripciones.InscripcionesListaEspera.as_view(), name='inscripciones-lista-espera'),
+    path('inscripciones-cancel/', inscripciones.InscripcionesCancel.as_view(), name='inscripciones-cancel'),
 
     # Reportes
-    path('reportes/resumen/', reportes.ReportesResumen.as_view(), name='reportes-resumen'),
+    path('reportes-resumen/', reportes.ReportesResumen.as_view(), name='reportes-resumen'),
 ]

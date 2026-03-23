@@ -5,14 +5,13 @@ from rest_framework import permissions, generics, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 import logging
-from ..permissions import IsAdminOrAuthenticated
 
 logger = logging.getLogger(__name__)
 
 
 class InscripcionesAll(generics.CreateAPIView):
-    """POST /inscripciones/  → inscribirse a un evento"""
-    permission_classes = (IsAdminOrAuthenticated,)
+    """GET /lista-inscripciones/  → listar inscripciones (filtrable por evento_id o alumno_id)."""
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         """Listar inscripciones (filtrable por evento_id o alumno_id)."""
@@ -26,53 +25,75 @@ class InscripcionesAll(generics.CreateAPIView):
         lista = InscripcionSerializer(qs, many=True).data
         return Response(lista, 200)
 
+
+class InscripcionesView(generics.CreateAPIView):
+    """GET /inscripcion/?id={id}  → obtener inscripción por ID
+       POST /inscripcion/         → inscribirse a un evento
+    """
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        inscripcion = get_object_or_404(Inscripciones, id=request.GET.get("id"))
+        data = InscripcionSerializer(inscripcion, many=False).data
+        return Response(data, 200)
+
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         evento_id = request.data.get("evento_id")
-
         if not evento_id:
-            return Response({"detail": "evento_id es requerido"}, status=400)
+            return Response({"details": "evento_id es requerido"}, status=400)
 
         try:
             alumno = Alumnos.objects.get(user=request.user)
         except Alumnos.DoesNotExist:
-            return Response(
-                {"detail": "El usuario autenticado no tiene perfil de alumno."},
-                status=403
-            )
+            return Response({"details": "Forbidden"}, status=403)
 
         evento = get_object_or_404(Eventos, id=evento_id)
 
-        # Verificar si ya está inscrito
         if Inscripciones.objects.filter(evento=evento, alumno=alumno).exists():
-            return Response({"detail": "El alumno ya está inscrito en este evento", "estado": "ya_inscrito"}, status=400)
+            return Response({"details": "El alumno ya está inscrito"}, status=400)
 
-        # Verificar cupo
         inscritos = evento.inscripciones.filter(tipo='inscrito').count()
         if inscritos >= evento.cupo_maximo:
             if evento.lista_espera:
-                # Inscribir en lista de espera
-                inscripcion = Inscripciones.objects.create(
-                    evento=evento, alumno=alumno, tipo='lista_espera'
-                )
-                data = InscripcionSerializer(inscripcion).data
-                data['estado'] = 'lista_espera'
-                return Response(data, status=status.HTTP_201_CREATED)
-            else:
-                return Response({"detail": "Evento lleno y sin lista de espera", "estado": "lleno"}, status=400)
+                inscripcion = Inscripciones.objects.create(evento=evento, alumno=alumno, tipo='lista_espera')
+                inscripcion.save()
+                return Response({"inscripcion_created_id": inscripcion.id}, status=status.HTTP_201_CREATED)
+            return Response({"details": "Evento lleno"}, status=400)
 
-        # Inscripción normal
-        inscripcion = Inscripciones.objects.create(
-            evento=evento, alumno=alumno, tipo='inscrito'
-        )
-        data = InscripcionSerializer(inscripcion).data
-        data['estado'] = 'inscrito'
-        return Response(data, status=status.HTTP_201_CREATED)
+        inscripcion = Inscripciones.objects.create(evento=evento, alumno=alumno, tipo='inscrito')
+        inscripcion.save()
+        return Response({"inscripcion_created_id": inscripcion.id}, status=status.HTTP_201_CREATED)
+
+
+class InscripcionesViewEdit(generics.CreateAPIView):
+    """PUT    /inscripciones-edit/      → editar inscripción
+       DELETE /inscripciones-edit/?id={id}  → eliminar inscripción
+    """
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def put(self, request, *args, **kwargs):
+        inscripcion = get_object_or_404(Inscripciones, id=request.data["id"])
+        if "tipo" in request.data:
+            inscripcion.tipo = request.data["tipo"]
+        inscripcion.save()
+        data = InscripcionSerializer(inscripcion, many=False).data
+        return Response(data, 200)
+
+    @transaction.atomic
+    def delete(self, request, *args, **kwargs):
+        inscripcion = get_object_or_404(Inscripciones, id=request.GET.get("id"))
+        try:
+            inscripcion.delete()
+            return Response({"details": "Inscripción eliminada"}, status=status.HTTP_200_OK)
+        except Exception:
+            logger.exception("Error deleting inscripcion id=%s by user_id=%s", request.GET.get("id"), getattr(request.user, 'id', None))
+            return Response({"details": "Algo pasó al eliminar"}, status=status.HTTP_200_OK)
 
 
 class InscripcionesListaEspera(generics.CreateAPIView):
     """POST /inscripciones/lista-espera/  → inscribirse a la lista de espera"""
-    permission_classes = (IsAdminOrAuthenticated,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
@@ -98,22 +119,19 @@ class InscripcionesListaEspera(generics.CreateAPIView):
 
 class InscripcionesCancel(generics.CreateAPIView):
     """DELETE /inscripciones/cancel/?evento_id={id}&alumno_id={id}  → cancelar inscripción"""
-    permission_classes = (IsAdminOrAuthenticated,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        if not request.user.groups.filter(name__iexact='administrador').exists():
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-
         evento_id = request.GET.get("evento_id")
         alumno_id = request.GET.get("alumno_id")
 
         if not evento_id or not alumno_id:
-            return Response({"detail": "evento_id y alumno_id son requeridos"}, status=400)
+            return Response({"details": "evento_id y alumno_id son requeridos"}, status=400)
 
         inscripcion = Inscripciones.objects.select_for_update().filter(evento_id=evento_id, alumno_id=alumno_id).first()
         if not inscripcion:
-            return Response({"detail": "Inscripción no encontrada"}, status=404)
+            return Response({"details": "Inscripción no encontrada"}, status=404)
 
         tipo_anterior = inscripcion.tipo
         try:
@@ -147,4 +165,4 @@ class InscripcionesCancel(generics.CreateAPIView):
                     )
                     return Response({"detail": "Error al promover lista de espera"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response({"detail": "Inscripción cancelada", "estado": "cancelado"}, status=status.HTTP_200_OK)
+                return Response({"details": "Inscripción cancelada"}, status=status.HTTP_200_OK)
