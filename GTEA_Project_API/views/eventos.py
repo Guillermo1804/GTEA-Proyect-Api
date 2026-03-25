@@ -10,6 +10,55 @@ import re
 
 logger = logging.getLogger(__name__)
 
+def _user_in_group(user, group_name: str) -> bool:
+    """
+    El proyecto identifica roles por `user.groups` con nombres:
+    - `alumno`
+    - `organizador`
+    - `administrador`
+    """
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    return user.groups.filter(name=group_name).exists()
+
+
+def _is_admin(user) -> bool:
+    return _user_in_group(user, "administrador")
+
+
+def _is_organizador(user) -> bool:
+    return _user_in_group(user, "organizador")
+
+
+def _eventos_queryset_for_user(request, base_qs):
+    """
+    Regla de permisos solicitada:
+    - Admin: ve todos.
+    - Organizador: solo sus propios eventos.
+    - Alumno (u otros roles): por compatibilidad mantenemos comportamiento actual (ver todos en listados).
+    """
+    if _is_admin(request.user):
+        return base_qs
+    if _is_organizador(request.user):
+        return base_qs.filter(organizador=request.user)
+    return base_qs
+
+
+def _assert_can_modify_evento(request, evento: Eventos) -> None:
+    """
+    Regla de permisos solicitada:
+    - Admin: puede modificar cualquier evento.
+    - Organizador: solo si el evento pertenece a su usuario.
+    - Otros: no pueden modificar.
+    """
+    if _is_admin(request.user):
+        return
+    if not _is_organizador(request.user):
+        raise PermissionError("Forbidden")
+    if evento.organizador_id != request.user.id:
+        # Ocultamos el recurso ajeno al organizador (evita enumeración).
+        raise PermissionError("Forbidden")
+
 
 def _normalize_evento_payload(data: dict) -> dict:
     def _coerce_fk_id(value):
@@ -72,7 +121,10 @@ class EventosAll(generics.CreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
-        eventos = Eventos.objects.all().order_by("-fecha_inicio")
+        eventos = _eventos_queryset_for_user(
+            request,
+            Eventos.objects.all().order_by("-fecha_inicio"),
+        )
         lista = EventoSerializer(eventos, many=True).data
         return Response(lista, 200)
 
@@ -87,16 +139,28 @@ class EventosView(generics.CreateAPIView):
     def get(self, request, *args, **kwargs):
         evento_id = request.GET.get("id")
         if evento_id:
-            evento = get_object_or_404(Eventos, id=evento_id)
+            if _is_admin(request.user):
+                evento = get_object_or_404(Eventos, id=evento_id)
+            elif _is_organizador(request.user):
+                evento = get_object_or_404(Eventos, id=evento_id, organizador=request.user)
+            else:
+                # Para otros roles mantenemos el comportamiento actual (ocultar/modificar no aplica aquí).
+                evento = get_object_or_404(Eventos, id=evento_id)
             data = EventoSerializer(evento, many=False).data
             return Response(data, 200)
 
-        eventos = Eventos.objects.all().order_by("-fecha_inicio")
+        eventos = _eventos_queryset_for_user(
+            request,
+            Eventos.objects.all().order_by("-fecha_inicio"),
+        )
         lista = EventoSerializer(eventos, many=True).data
         return Response(lista, 200)
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
+        if not (_is_admin(request.user) or _is_organizador(request.user)):
+            return Response({"details": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
         data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
         data = _normalize_evento_payload(data)
 
@@ -129,13 +193,17 @@ class EventosViewEdit(generics.CreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
+        evento_id = request.data.get("id") or request.data.get("evento_id") or request.data.get("eventoId")
         data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
         data = _normalize_evento_payload(data)
 
-        evento_id = data.get("id") or request.data.get("id")
         if not evento_id:
             return Response({"details": "Falta el campo id"}, status=status.HTTP_400_BAD_REQUEST)
         evento = get_object_or_404(Eventos, id=evento_id)
+        try:
+            _assert_can_modify_evento(request, evento)
+        except PermissionError:
+            return Response({"details": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
         direct_fields = [
             'titulo', 'descripcion', 'modalidad', 'status',
@@ -165,9 +233,13 @@ class EventosViewEdit(generics.CreateAPIView):
             return Response({"details": "Falta el parámetro id"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            deleted_count, _ = Eventos.objects.filter(id=evento_id).delete()
-            if deleted_count == 0:
-                return Response({"details": "Evento no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            evento = get_object_or_404(Eventos, id=evento_id)
+            try:
+                _assert_can_modify_evento(request, evento)
+            except PermissionError:
+                return Response({"details": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+            evento.delete()
             return Response({"details": "Evento eliminado", "deleted_id": int(evento_id)}, status=status.HTTP_200_OK)
         except Exception:
             logger.exception(
