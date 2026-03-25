@@ -49,6 +49,7 @@ urlpatterns = [
     path('eventos/', eventos.EventosView.as_view(), name='eventos'),
     path('eventos/detail/', eventos.EventosView.as_view(), name='eventos-detail'),
     path('eventos/edit/', eventos.EventosViewEdit.as_view(), name='eventos-edit'),
+    path('eventos/imagen-upload/', eventos.EventoImagenUpload.as_view(), name='eventos-imagen-upload'),
 
     # Inscripciones
     path('inscripciones/', inscripciones.InscripcionesView.as_view(), name='inscripciones'),
@@ -59,3 +60,23 @@ urlpatterns = [
     # Reportes
     path('reportes/resumen/', reportes.ReportesResumen.as_view(), name='reportes-resumen'),
 ]
+
+# Archivos subidos (imágenes de eventos, etc.)
+# `static(MEDIA_URL, ...)` solo añade rutas cuando DEBUG=True; con DEBUG=False (default en
+# settings) las peticiones a /media/... daban 404. Servimos MEDIA siempre desde Django;
+# en producción conviene que nginx sirva /media/ antes de llegar aquí (más eficiente).
+from django.conf import settings
+from django.urls import re_path
+from django.views.static import serve
+
+if getattr(settings, 'MEDIA_URL', None) and getattr(settings, 'MEDIA_ROOT', None):
+    _media_prefix = settings.MEDIA_URL.lstrip('/')
+    if _media_prefix and not _media_prefix.endswith('/'):
+        _media_prefix += '/'
+    urlpatterns += [
+        re_path(
+            rf'^{_media_prefix}(?P<path>.*)$',
+            serve,
+            {'document_root': settings.MEDIA_ROOT},
+        ),
+    ]

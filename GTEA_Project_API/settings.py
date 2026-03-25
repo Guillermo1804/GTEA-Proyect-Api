@@ -193,6 +193,11 @@ REST_FRAMEWORK = {
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+# Media uploads (imagenes de portada de eventos).
+# El backend guarda archivos en `MEDIA_ROOT` y expone su URL via `MEDIA_URL`.
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 # CORS settings (development)
 # Mirror sistema-fcc-api's permissive dev behavior when DEBUG=True.
 if DEBUG:

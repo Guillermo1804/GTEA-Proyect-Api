@@ -4,9 +4,14 @@ from ..serializers import EventoSerializer
 from ..models import Eventos
 from rest_framework import permissions, generics, status
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
+from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 import logging
 import re
+import os
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -248,3 +253,52 @@ class EventosViewEdit(generics.CreateAPIView):
                 getattr(request.user, 'id', None),
             )
             return Response({"details": "Error al eliminar"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class EventoImagenUpload(generics.CreateAPIView):
+    """
+    POST /eventos/imagen-upload/
+      - Recibe un archivo multipart con el campo `imagen`
+      - Guarda el archivo en `MEDIA_ROOT/eventos/` y devuelve una URL absoluta
+
+    Nota: el modelo `Eventos.imagen_portada` es un URLField, así que devolvemos
+    una URL válida (ej: https://tu-dominio/media/eventos/<archivo>.jpg).
+    """
+
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, *args, **kwargs):
+        uploaded = request.FILES.get("imagen") or request.FILES.get("file")
+        if not uploaded:
+            return Response({"details": "Falta el archivo 'imagen' (multipart/form-data)"}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_types = ("image/png", "image/jpeg")
+        if getattr(uploaded, "content_type", None) not in valid_types:
+            return Response(
+                {"details": "Tipo de archivo no permitido. Solo PNG/JPG"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        max_size = 5 * 1024 * 1024  # 5MB
+        if uploaded.size > max_size:
+            return Response({"details": "La imagen no debe superar 5MB"}, status=status.HTTP_400_BAD_REQUEST)
+
+        _, ext = os.path.splitext(uploaded.name)
+        ext = ext.lower()
+        if ext not in (".png", ".jpg", ".jpeg"):
+            # Fallback: si el nombre viene raro, inferimos por content_type
+            ext = ".png" if uploaded.content_type == "image/png" else ".jpg"
+
+        eventos_dir = os.path.join(settings.MEDIA_ROOT, "eventos")
+        base_url = f"{settings.MEDIA_URL.rstrip('/')}/eventos"
+
+        storage = FileSystemStorage(location=eventos_dir, base_url=base_url)
+
+        filename = f"{uuid.uuid4().hex}{ext}"
+        saved_name = storage.save(filename, uploaded)
+        url = storage.url(saved_name)  # '/media/eventos/<file>'
+        absolute_url = request.build_absolute_uri(url)
+
+        return Response({"imagen_url": absolute_url}, status=status.HTTP_201_CREATED)
