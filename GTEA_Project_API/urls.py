@@ -230,7 +230,13 @@ urlpatterns = [
     ),
  #   path('inscripciones/lista-espera/', inscripciones_lista_espera_front, name='inscripciones-lista-espera'),
    # path('inscripciones/mis-eventos/', inscripciones_mis_eventos, name='inscripciones-mis-eventos'),
-    #path('inscripciones/cancel/', inscripciones_cancel_front, name='inscripciones-cancel'),
+    path(
+        'inscripciones/cancel/',
+        inscripciones.InscripcionesCancel.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='inscripciones-cancel',
+    ),
 
     # Reportes
     path(

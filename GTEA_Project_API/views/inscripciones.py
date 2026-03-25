@@ -212,7 +212,7 @@ class InscripcionesListaEspera(generics.CreateAPIView):
         return Response(data, status=status.HTTP_201_CREATED)
 
 
-class InscripcionesCancel(generics.CreateAPIView):
+class InscripcionesCancel(generics.GenericAPIView):
     """DELETE /inscripciones/cancel/?evento_id={id}&alumno_id={id}  → cancelar inscripción"""
     permission_classes = (permissions.IsAuthenticated,)
 
