@@ -5,9 +5,19 @@ from rest_framework import permissions, generics, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 import logging
-from ..permissions import IsAdminOrReadOnly, IsAdminOrAuthenticated
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_aula_payload(data: dict) -> dict:
+    mapping = {
+        'sedeId': 'sede',
+    }
+
+    for camel_key, snake_key in mapping.items():
+        if snake_key not in data and camel_key in data:
+            data[snake_key] = data[camel_key]
+    return data
 
 
 # ═══════════════════════════════════════════════
@@ -15,43 +25,43 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════
 
 class SedesAll(generics.CreateAPIView):
-    """GET  /sedes/  → lista de sedes activas
-       POST /sedes/  → crear nueva sede
-    """
-    permission_classes = (IsAdminOrReadOnly,)
+    """GET /lista-sedes/  → lista de sedes"""
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         sedes = Sedes.objects.filter(activa=True).order_by("nombre")
         lista = SedeSerializer(sedes, many=True).data
         return Response(lista, 200)
 
-    @transaction.atomic
-    def post(self, request, *args, **kwargs):
-        serializer = SedeSerializer(data=request.data)
-        if serializer.is_valid():
-            sede = serializer.save()
-            return Response({"sede_created_id": sede.id}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-class SedesDetail(generics.CreateAPIView):
-    """GET /sedes/detail/?id={id}  → obtener sede por ID"""
-    permission_classes = (IsAdminOrReadOnly,)
+class SedesView(generics.CreateAPIView):
+    """GET /sede/?id={id}  → obtener sede por ID
+       POST /sede/         → crear sede
+    """
 
     def get(self, request, *args, **kwargs):
         sede = get_object_or_404(Sedes, id=request.GET.get("id"))
         data = SedeSerializer(sede, many=False).data
         return Response(data, 200)
 
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        serializer = SedeSerializer(data=request.data)
+        if serializer.is_valid():
+            sede = Sedes.objects.create(**serializer.validated_data)
+            sede.save()
+            return Response({"sede_created_id": sede.id}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class SedesEdit(generics.CreateAPIView):
-    """PUT    /sedes/edit/?id={id}  → editar sede
-       DELETE /sedes/edit/?id={id}  → desactivar sede (soft delete)
+
+class SedesViewEdit(generics.CreateAPIView):
+    """PUT    /sedes-edit/      → editar sede
+       DELETE /sedes-edit/?id={id}  → eliminar sede
     """
-    permission_classes = (IsAdminOrReadOnly,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
-        sede = get_object_or_404(Sedes, id=request.data.get("id") or request.GET.get("id"))
+        sede = get_object_or_404(Sedes, id=request.data["id"])
         sede.nombre = request.data.get("nombre", sede.nombre)
         sede.domicilio = request.data.get("domicilio", sede.domicilio)
         sede.telefono = request.data.get("telefono", sede.telefono)
@@ -60,26 +70,19 @@ class SedesEdit(generics.CreateAPIView):
         sede.notas = request.data.get("notas", sede.notas)
         if "instalaciones" in request.data:
             sede.instalaciones = request.data["instalaciones"]
-        if "activa" in request.data:
-            sede.activa = request.data["activa"]
         sede.save()
         data = SedeSerializer(sede, many=False).data
         return Response(data, 200)
 
     @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        sede_id = request.GET.get("id")
-        if not sede_id:
-            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
-
-        sede = get_object_or_404(Sedes, id=sede_id)
+        sede = get_object_or_404(Sedes, id=request.GET.get("id"))
         try:
-            sede.activa = False
-            sede.save()
-            return Response({"details": "Sede desactivada"}, status=status.HTTP_200_OK)
+            sede.delete()
+            return Response({"details": "Sede eliminada"}, status=status.HTTP_200_OK)
         except Exception:
-            logger.exception("Error soft-deleting sede id=%s by user_id=%s", sede_id, getattr(request.user, 'id', None))
-            return Response({"detail": "Error al desactivar sede"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Error deleting sede id=%s by user_id=%s", request.GET.get("id"), getattr(request.user, 'id', None))
+            return Response({"details": "Algo pasó al eliminar"}, status=status.HTTP_200_OK)
 
 
 # ═══════════════════════════════════════════════
@@ -87,10 +90,8 @@ class SedesEdit(generics.CreateAPIView):
 # ═══════════════════════════════════════════════
 
 class AulasAll(generics.CreateAPIView):
-    """GET  /aulas/?sede_id={id}  → lista de aulas (filtro opcional por sede)
-       POST /aulas/               → crear nueva aula
-    """
-    permission_classes = (IsAdminOrAuthenticated,)
+    """GET /lista-aulas/?sede_id={id}  → lista de aulas (filtro opcional por sede)"""
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         sede_id = request.GET.get("sede_id")
@@ -100,53 +101,68 @@ class AulasAll(generics.CreateAPIView):
         lista = AulaSerializer(qs, many=True).data
         return Response(lista, 200)
 
+
+class AulasView(generics.CreateAPIView):
+    """GET /aula/?id={id}  → obtener aula por ID
+       POST /aula/         → crear aula
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        aula_id = request.GET.get("id")
+        if aula_id:
+            aula = get_object_or_404(Aulas, id=aula_id)
+            data = AulaSerializer(aula, many=False).data
+            return Response(data, 200)
+
+        sede_id = request.GET.get("sede_id")
+        qs = Aulas.objects.all().order_by("nombre")
+        if sede_id:
+            qs = qs.filter(sede_id=sede_id)
+        lista = AulaSerializer(qs, many=True).data
+        return Response(lista, 200)
+
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        # El frontend envía sedeId (camelCase); mapeamos a sede (FK)
         data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-        if 'sedeId' in data and 'sede' not in data:
-            data['sede'] = data.pop('sedeId')
+        data = _normalize_aula_payload(data)
         serializer = AulaSerializer(data=data)
         if serializer.is_valid():
-            aula = serializer.save()
+            aula = Aulas.objects.create(**serializer.validated_data)
+            aula.save()
             return Response({"aula_created_id": aula.id}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class AulasEdit(generics.CreateAPIView):
-    """PUT    /aulas/edit/?id={id}  → editar aula
-       DELETE /aulas/edit/?id={id}  → eliminar aula
+class AulasViewEdit(generics.CreateAPIView):
+    """PUT    /aulas-edit/      → editar aula
+       DELETE /aulas-edit/?id={id}  → eliminar aula
     """
-    permission_classes = (IsAdminOrAuthenticated,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
-        aula = get_object_or_404(Aulas, id=request.data.get("id") or request.GET.get("id"))
-        aula.nombre = request.data.get("nombre", aula.nombre)
-        aula.capacidad = request.data.get("capacidad", aula.capacidad)
-        aula.piso = request.data.get("piso", aula.piso)
-        aula.tipo = request.data.get("tipo", aula.tipo)
-        aula.estado = request.data.get("estado", aula.estado)
-        if "sedeId" in request.data:
-            aula.sede_id = request.data["sedeId"]
-        elif "sede" in request.data:
-            aula.sede_id = request.data["sede"]
+        aula = get_object_or_404(Aulas, id=request.data["id"])
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data = _normalize_aula_payload(data)
+
+        aula.nombre = data.get("nombre", aula.nombre)
+        aula.capacidad = data.get("capacidad", aula.capacidad)
+        aula.piso = data.get("piso", aula.piso)
+        aula.tipo = data.get("tipo", aula.tipo)
+        aula.estado = data.get("estado", aula.estado)
+        if "sede" in data:
+            aula.sede_id = data["sede"]
         aula.save()
         data = AulaSerializer(aula, many=False).data
         return Response(data, 200)
 
     @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        if not request.user.groups.filter(name__iexact='administrador').exists():
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-
-        aula_id = request.GET.get("id")
-        if not aula_id:
-            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
-
-        aula = get_object_or_404(Aulas, id=aula_id)
+        aula = get_object_or_404(Aulas, id=request.GET.get("id"))
         try:
             aula.delete()
             return Response({"details": "Aula eliminada"}, status=status.HTTP_200_OK)
         except Exception:
-            logger.exception("Error deleting aula id=%s by user_id=%s", aula_id, getattr(request.user, 'id', None))
-            return Response({"detail": "Error al eliminar aula"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Error deleting aula id=%s by user_id=%s", request.GET.get("id"), getattr(request.user, 'id', None))
+            return Response({"details": "Algo pasó al eliminar"}, status=status.HTTP_200_OK)
