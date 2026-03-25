@@ -166,3 +166,5 @@ class InscripcionesCancel(generics.CreateAPIView):
                     return Response({"detail": "Error al promover lista de espera"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
                 return Response({"details": "Inscripción cancelada"}, status=status.HTTP_200_OK)
+
+        return Response({"details": "Inscripción cancelada"}, status=status.HTTP_200_OK)

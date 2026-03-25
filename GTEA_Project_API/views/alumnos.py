@@ -96,11 +96,12 @@ class AlumnosViewEdit (generics.CreateAPIView):
     def put(self, request, *args, **kwargs):
         # iduser=request.data["id"]
         alumno = get_object_or_404(Alumnos, id=request.data["id"])
-        alumno.matricula = request.data["matricula"]
+        alumno.matricula = request.data.get("matricula", alumno.matricula)
+        alumno.ocupacion = request.data.get("ocupacion", alumno.ocupacion)
         alumno.save()
         temp = alumno.user
-        temp.first_name = request.data["first_name"]
-        temp.last_name = request.data["last_name"]
+        temp.first_name = request.data.get("first_name", temp.first_name)
+        temp.last_name = request.data.get("last_name", temp.last_name)
         temp.save()
         user = AlumnoSerializer(alumno, many=False).data
 

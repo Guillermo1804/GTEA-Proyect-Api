@@ -9,6 +9,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _normalize_aula_payload(data: dict) -> dict:
+    mapping = {
+        'sedeId': 'sede',
+    }
+
+    for camel_key, snake_key in mapping.items():
+        if snake_key not in data and camel_key in data:
+            data[snake_key] = data[camel_key]
+    return data
+
+
 # ═══════════════════════════════════════════════
 # SEDES
 # ═══════════════════════════════════════════════
@@ -96,14 +107,27 @@ class AulasView(generics.CreateAPIView):
        POST /aula/         → crear aula
     """
 
+    permission_classes = (permissions.IsAuthenticated,)
+
     def get(self, request, *args, **kwargs):
-        aula = get_object_or_404(Aulas, id=request.GET.get("id"))
-        data = AulaSerializer(aula, many=False).data
-        return Response(data, 200)
+        aula_id = request.GET.get("id")
+        if aula_id:
+            aula = get_object_or_404(Aulas, id=aula_id)
+            data = AulaSerializer(aula, many=False).data
+            return Response(data, 200)
+
+        sede_id = request.GET.get("sede_id")
+        qs = Aulas.objects.all().order_by("nombre")
+        if sede_id:
+            qs = qs.filter(sede_id=sede_id)
+        lista = AulaSerializer(qs, many=True).data
+        return Response(lista, 200)
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        serializer = AulaSerializer(data=request.data)
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data = _normalize_aula_payload(data)
+        serializer = AulaSerializer(data=data)
         if serializer.is_valid():
             aula = Aulas.objects.create(**serializer.validated_data)
             aula.save()
@@ -119,13 +143,16 @@ class AulasViewEdit(generics.CreateAPIView):
 
     def put(self, request, *args, **kwargs):
         aula = get_object_or_404(Aulas, id=request.data["id"])
-        aula.nombre = request.data.get("nombre", aula.nombre)
-        aula.capacidad = request.data.get("capacidad", aula.capacidad)
-        aula.piso = request.data.get("piso", aula.piso)
-        aula.tipo = request.data.get("tipo", aula.tipo)
-        aula.estado = request.data.get("estado", aula.estado)
-        if "sede" in request.data:
-            aula.sede_id = request.data["sede"]
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data = _normalize_aula_payload(data)
+
+        aula.nombre = data.get("nombre", aula.nombre)
+        aula.capacidad = data.get("capacidad", aula.capacidad)
+        aula.piso = data.get("piso", aula.piso)
+        aula.tipo = data.get("tipo", aula.tipo)
+        aula.estado = data.get("estado", aula.estado)
+        if "sede" in data:
+            aula.sede_id = data["sede"]
         aula.save()
         data = AulaSerializer(aula, many=False).data
         return Response(data, 200)

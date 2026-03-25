@@ -14,8 +14,13 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
 from django.urls import path
+
+from rest_framework import generics
+from rest_framework.authentication import TokenAuthentication
+
+from .models import BearerTokenAuthentication, Categorias, Sedes
+from .serializers import CategoriaSerializer, SedeSerializer
 from .views import alumnos
 from .views import auth
 from .views import organizador
@@ -27,56 +32,105 @@ from .views import inscripciones
 from .views import reportes
 
 urlpatterns = [
+    # ═════════════════════════════════════════════════════════
+    # Frontend-compatible endpoints (NO tocar el front)
+    # ═════════════════════════════════════════════════════════
 
-    # Django admin
-    path('django-admin/', admin.site.urls),
+    # Auth
+    path('auth/login/', auth.CustomAuthToken.as_view(), name='auth-login'),
+    path('auth/logout/', auth.Logout.as_view(), name='auth-logout'),
 
-    # Auth (sistema-fcc-api style)
-    path('token/', auth.CustomAuthToken.as_view(), name='auth-token'),
-    path('logout/', auth.Logout.as_view(), name='auth-logout'),
-
-    # Administradores
-    path('admin/', users.AdminView.as_view(), name='admin-create-detail'),
-    path('lista-admins/', users.AdminAll.as_view(), name='admins-list'),
-    path('admins-edit/', users.AdminsViewEdit.as_view(), name='admins-edit'),
-
-    # Organizadores
-    path('organizadores/', organizador.OrganizadoresView.as_view(), name='organizadores-create-detail'),
-    path('lista-organizadores/', organizador.OrganizadorAll.as_view(), name='organizadores-list'),
-    path('organizadores-edit/', organizador.OrganizadoresViewEdit.as_view(), name='organizadores-edit'),
+    # Admins
+    path('admins/', users.AdminAll.as_view(), name='admins-list'),
+    path('admins/detail/', users.AdminView.as_view(), name='admins-detail'),
+    path('admins/edit/', users.AdminsViewEdit.as_view(), name='admins-edit'),
 
     # Alumnos
-    path('alumnos/', alumnos.AlumnosView.as_view(), name='alumnos-create-detail'),
-    path('lista-alumnos/', alumnos.AlumnosAll.as_view(), name='alumnos-list'),
-    path('alumnos-edit/', alumnos.AlumnosViewEdit.as_view(), name='alumnos-edit'),
+    path('alumnos/detail/', alumnos.AlumnosView.as_view(), name='alumnos-detail'),
+    path('alumnos/edit/', alumnos.AlumnosViewEdit.as_view(), name='alumnos-edit'),
+#       path('alumnos/perfil/', alumnos_perfil, name='alumnos-perfil-front'),
+
+    # Organizadores
+    path('organizadores/detail/', organizador.OrganizadoresView.as_view(), name='organizadores-detail'),
+    path('organizadores/edit/', organizador.OrganizadoresViewEdit.as_view(), name='organizadores-edit'),
 
     # Categorías
-    path('categoria/', categorias.CategoriasView.as_view(), name='categorias-create-detail'),
-    path('lista-categorias/', categorias.CategoriasAll.as_view(), name='categorias-list'),
-    path('categorias-edit/', categorias.CategoriasViewEdit.as_view(), name='categorias-edit'),
+    path(
+        'categorias/',
+        generics.ListCreateAPIView.as_view(
+            queryset=Categorias.objects.filter(activa=True).order_by('nombre'),
+            serializer_class=CategoriaSerializer,
+        ),
+        name='categorias',
+    ),
+    path('categorias/detail/', categorias.CategoriasView.as_view(), name='categorias-detail'),
+    path('categorias/edit/', categorias.CategoriasViewEdit.as_view(), name='categorias-edit'),
 
     # Sedes
-    path('sede/', sedes.SedesView.as_view(), name='sedes-create-detail'),
-    path('lista-sedes/', sedes.SedesAll.as_view(), name='sedes-list'),
-    path('sedes-edit/', sedes.SedesViewEdit.as_view(), name='sedes-edit'),
+    path(
+        'sedes/',
+        generics.ListCreateAPIView.as_view(
+            queryset=Sedes.objects.filter(activa=True).order_by('nombre'),
+            serializer_class=SedeSerializer,
+        ),
+        name='sedes',
+    ),
+    path('sedes/detail/', sedes.SedesView.as_view(), name='sedes-detail'),
+    path('sedes/edit/', sedes.SedesViewEdit.as_view(), name='sedes-edit'),
 
     # Aulas
-    path('aula/', sedes.AulasView.as_view(), name='aulas-create-detail'),
-    path('lista-aulas/', sedes.AulasAll.as_view(), name='aulas-list'),
-    path('aulas-edit/', sedes.AulasViewEdit.as_view(), name='aulas-edit'),
+    path(
+        'aulas/',
+        sedes.AulasView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='aulas',
+    ),
+    path(
+        'aulas/detail/',
+        sedes.AulasView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='aulas-detail',
+    ),
+    path(
+        'aulas/edit/',
+        sedes.AulasViewEdit.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='aulas-edit',
+    ),
 
     # Eventos
-    path('evento/', eventos.EventosView.as_view(), name='eventos-create-detail'),
-    path('lista-eventos/', eventos.EventosAll.as_view(), name='eventos-list'),
-    path('eventos-edit/', eventos.EventosViewEdit.as_view(), name='eventos-edit'),
+    path(
+        'eventos/',
+        eventos.EventosView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='eventos',
+    ),
+    path(
+        'eventos/detail/',
+        eventos.EventosView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='eventos-detail',
+    ),
+    path(
+        'eventos/edit/',
+        eventos.EventosViewEdit.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='eventos-edit',
+    ),
 
     # Inscripciones
-    path('inscripcion/', inscripciones.InscripcionesView.as_view(), name='inscripciones-create-detail'),
-    path('lista-inscripciones/', inscripciones.InscripcionesAll.as_view(), name='inscripciones-list'),
-    path('inscripciones-edit/', inscripciones.InscripcionesViewEdit.as_view(), name='inscripciones-edit'),
-    path('inscripciones-lista-espera/', inscripciones.InscripcionesListaEspera.as_view(), name='inscripciones-lista-espera'),
-    path('inscripciones-cancel/', inscripciones.InscripcionesCancel.as_view(), name='inscripciones-cancel'),
+    path('inscripciones/detail/', inscripciones.InscripcionesView.as_view(), name='inscripciones-detail'),
+    path('inscripciones/edit/', inscripciones.InscripcionesViewEdit.as_view(), name='inscripciones-edit'),
+ #   path('inscripciones/lista-espera/', inscripciones_lista_espera_front, name='inscripciones-lista-espera'),
+   # path('inscripciones/mis-eventos/', inscripciones_mis_eventos, name='inscripciones-mis-eventos'),
+    #path('inscripciones/cancel/', inscripciones_cancel_front, name='inscripciones-cancel'),
 
     # Reportes
-    path('reportes-resumen/', reportes.ReportesResumen.as_view(), name='reportes-resumen'),
+    path('reportes/resumen/', reportes.ReportesResumen.as_view(), name='reportes-resumen'),
 ]

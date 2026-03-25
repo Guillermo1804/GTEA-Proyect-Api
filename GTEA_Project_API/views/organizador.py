@@ -94,11 +94,11 @@ class OrganizadoresViewEdit(generics.CreateAPIView):
     def put(self, request, *args, **kwargs):
         # iduser=request.data["id"]
         organizador = get_object_or_404(Organizadores, id=request.data["id"])
-        organizador.id_trabajador = request.data["id_trabajador"]
+        organizador.id_trabajador = request.data.get("id_trabajador", organizador.id_trabajador)
         organizador.save()
         temp = organizador.user
-        temp.first_name = request.data["first_name"]
-        temp.last_name = request.data["last_name"]
+        temp.first_name = request.data.get("first_name", temp.first_name)
+        temp.last_name = request.data.get("last_name", temp.last_name)
         temp.save()
         user = OrganizadorSerializer(organizador, many=False).data
 
