@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -91,7 +94,7 @@ DATABASES = {
         'USER': os.environ.get('DB_USER', 'root'),
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
+        'PORT': os.environ.get('DB_PORT', '3307'),
     }
 }
 
@@ -178,18 +181,19 @@ LOGGING = {
 # Views already require `IsAuthenticated`, so ensure Token auth is available.
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'GTEA_Project_API.authentication.CookieTokenAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.authentication.SessionAuthentication',
+        'GTEA_Project_API.models.BearerTokenAuthentication',
     ),
 }
 
-# Auth token cookie settings (development defaults)
-# NOTE: If you later deploy behind HTTPS, set AUTH_TOKEN_COOKIE_SECURE=True
-AUTH_TOKEN_COOKIE_NAME = 'auth_token'
-AUTH_TOKEN_COOKIE_SECURE = False
-AUTH_TOKEN_COOKIE_SAMESITE = 'Lax'
-AUTH_TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 days
+# NOTE:
+# - Permissions are set per-view to mirror sistema-fcc-api (public create endpoints,
+#   protected list/edit endpoints).
+# - Cookie-based auth has been removed; use `Authorization: Bearer <token>`.
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# CORS settings (development)
+# Mirror sistema-fcc-api's permissive dev behavior when DEBUG=True.
+if DEBUG:
+    CORS_ORIGIN_ALLOW_ALL = True

@@ -6,7 +6,6 @@ from GTEA_Project_API.models import *
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication, TokenAuthentication
 from rest_framework.generics import CreateAPIView, DestroyAPIView, UpdateAPIView
 from rest_framework import permissions
-from ..permissions import IsAdminOrAuthenticated
 from rest_framework import generics
 from rest_framework import status
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -35,7 +34,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class OrganizadorAll(generics.CreateAPIView):
-    permission_classes = (IsAdminOrAuthenticated,)
+    permission_classes = (permissions.IsAuthenticated,)
     def get(self, request, *args, **kwargs):
         organizador = Organizadores.objects.filter(user__is_active = 1).order_by("id")
         organizador = OrganizadorSerializer(organizador, many=True).data
@@ -45,10 +44,6 @@ class OrganizadorAll(generics.CreateAPIView):
 class OrganizadoresView(generics.CreateAPIView):
     #Obtener usuario por ID
     # permission_classes = (permissions.IsAuthenticated,)
-    def get_permissions(self):
-        if self.request.method == 'POST':
-            return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
     
     def get(self, request, *args, **kwargs):
         organizador = get_object_or_404(Organizadores, id = request.GET.get("id"))
@@ -58,59 +53,52 @@ class OrganizadoresView(generics.CreateAPIView):
     #Registrar nuevo usuario
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        # Diagnostic logging
-        logger.info('RAW BODY: %s', request.body)
-        logger.info('PARSED DATA: %s', request.data)
+        user = UserSerializer(data=request.data)
+        if user.is_valid():
+            role = request.data['rol']
+            first_name = request.data['first_name']
+            last_name = request.data['last_name']
+            email = request.data['email']
+            password = request.data['password']
 
-        user_serializer = UserSerializer(data=request.data)
-        if not user_serializer.is_valid():
-            logger.info('User serializer errors: %s', user_serializer.errors)
-            return Response({'errors': user_serializer.errors, 'received': dict(request.data)}, status=400)
+            existing_user = User.objects.filter(email=email).first()
 
-        # Safely extract fields
-        role = request.data.get('rol')
-        first_name = request.data.get('first_name', '')
-        last_name = request.data.get('last_name', '')
-        email = request.data.get('email')
-        password = request.data.get('password')
+            if existing_user:
+                return Response({"message":"Username "+email+", is already taken"},400)
 
-        if not all([email, password, role]):
-            missing = [k for k in ('email', 'password', 'rol') if not request.data.get(k)]
-            return Response({'detail': f'missing required fields: {missing}'}, status=400)
+            user = User.objects.create( username = email,
+                                        email = email,
+                                        first_name = first_name,
+                                        last_name = last_name,
+                                        is_active = 1)
 
-        #Valida si existe el usuario o bien el email registrado
-        existing_user = User.objects.filter(email=email).first()
+            user.save()
+            user.set_password(password)
+            user.save()
 
-        if existing_user:
-            return Response({"message": f"Username {email} is already taken"}, 400)
+            group, created = Group.objects.get_or_create(name=role)
+            group.user_set.add(user)
+            user.save()
 
-        # Create user and profile
-        user = User.objects.create(username=email, email=email, first_name=first_name, last_name=last_name, is_active=1)
-        user.save()
-        user.set_password(password)
-        user.save()
+            organizador = Organizadores.objects.create(user=user,
+                                                       id_trabajador= request.data.get("id_trabajador"))
+            organizador.save()
 
-        group, created = Group.objects.get_or_create(name=role)
-        group.user_set.add(user)
-        user.save()
+            return Response({"organizador_created_id": organizador.id }, 201)
 
-        id_trabajador = request.data.get('id_trabajador')
-        organizador = Organizadores.objects.create(user=user, id_trabajador=id_trabajador)
-        organizador.save()
-
-        return Response({"organizador_created_id": organizador.id }, 201)
+        return Response(user.errors, status=status.HTTP_400_BAD_REQUEST)
 
 #Se tiene que modificar la parte de edicion y eliminar
 class OrganizadoresViewEdit(generics.CreateAPIView):
-    permission_classes = (IsAdminOrAuthenticated,)
+    permission_classes = (permissions.IsAuthenticated,)
     def put(self, request, *args, **kwargs):
         # iduser=request.data["id"]
         organizador = get_object_or_404(Organizadores, id=request.data["id"])
-        organizador.id_trabajador = request.data["id_trabajador"]
+        organizador.id_trabajador = request.data.get("id_trabajador", organizador.id_trabajador)
         organizador.save()
         temp = organizador.user
-        temp.first_name = request.data["first_name"]
-        temp.last_name = request.data["last_name"]
+        temp.first_name = request.data.get("first_name", temp.first_name)
+        temp.last_name = request.data.get("last_name", temp.last_name)
         temp.save()
         user = OrganizadorSerializer(organizador, many=False).data
 
@@ -118,17 +106,9 @@ class OrganizadoresViewEdit(generics.CreateAPIView):
     
     @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        if not request.user.groups.filter(name__iexact='administrador').exists():
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-
-        organizador_id = request.GET.get("id")
-        if not organizador_id:
-            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
-
-        organizador = get_object_or_404(Organizadores, id=organizador_id)
+        organizador= get_object_or_404(Organizadores, id=request.GET.get("id"))
         try:
             organizador.user.delete()
-            return Response({"details": "Organizador eliminado"}, status=status.HTTP_200_OK)
-        except Exception:
-            logger.exception("Error deleting organizador id=%s by user_id=%s", organizador_id, getattr(request.user, 'id', None))
-            return Response({"detail": "Error al eliminar organizador"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"details": "Organizador eliminado"})
+        except Exception as e:
+            return Response({"details": "Algo pasó al eliminar"})

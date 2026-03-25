@@ -17,11 +17,6 @@ class UserSerializer(serializers.ModelSerializer):
         if not data.get('username') and data.get('email'):
             data['username'] = data.get('email')
 
-        # Validate unique email for creation
-        email = data.get('email')
-        if email and User.objects.filter(email=email).exists():
-            raise serializers.ValidationError({'email': ['Este email ya está registrado.']})
-
         return data
 
     def create(self, validated_data):
