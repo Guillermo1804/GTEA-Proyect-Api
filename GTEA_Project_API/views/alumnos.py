@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.db.models import *
 from django.db import transaction
+from GTEA_Project_API.authentication import DEFAULT_API_AUTH
 from GTEA_Project_API.serializers import *
 from GTEA_Project_API.models import *
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication, TokenAuthentication
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 class AlumnoPerfilView(generics.CreateAPIView):
     """GET/PUT /alumnos/perfil/ → perfil del alumno autenticado."""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -111,6 +113,7 @@ class AlumnoPerfilView(generics.CreateAPIView):
         )
 
 class AlumnosAll(generics.CreateAPIView):
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     def get(self, request, *args, **kwargs):
         alumnos = Alumnos.objects.filter(user__is_active = 1).order_by("id")
@@ -121,7 +124,8 @@ class AlumnosAll(generics.CreateAPIView):
 class AlumnosView(generics.CreateAPIView):
     #Obtener usuario por ID
     # permission_classes = (permissions.IsAuthenticated,)
-    
+    authentication_classes = DEFAULT_API_AUTH
+
     def get(self, request, *args, **kwargs):
         alumno = get_object_or_404(Alumnos, id = request.GET.get("id"))
         alumno = AlumnoSerializer(alumno, many=False).data
@@ -169,6 +173,7 @@ class AlumnosView(generics.CreateAPIView):
 
    #Editar alumno
 class AlumnosViewEdit (generics.CreateAPIView):
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     def put(self, request, *args, **kwargs):
         # iduser=request.data["id"]

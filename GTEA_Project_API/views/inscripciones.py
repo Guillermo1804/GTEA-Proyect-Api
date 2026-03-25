@@ -1,4 +1,5 @@
 from django.db import transaction
+from ..authentication import DEFAULT_API_AUTH
 from ..serializers import InscripcionSerializer
 from ..models import Inscripciones, Eventos, Alumnos
 from rest_framework import permissions, generics, status
@@ -30,6 +31,7 @@ def _estado_evento_para_alumno(evento, inscripcion) -> str:
 
 class InscripcionesMisEventos(generics.CreateAPIView):
     """GET /inscripciones/mis-eventos/ → eventos del alumno autenticado."""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -87,6 +89,7 @@ class InscripcionesMisEventos(generics.CreateAPIView):
 
 class InscripcionesAll(generics.CreateAPIView):
     """GET /lista-inscripciones/  → listar inscripciones (filtrable por evento_id o alumno_id)."""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -106,6 +109,7 @@ class InscripcionesView(generics.CreateAPIView):
     """GET /inscripcion/?id={id}  → obtener inscripción por ID
        POST /inscripcion/         → inscribirse a un evento
     """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -165,6 +169,7 @@ class InscripcionesViewEdit(generics.CreateAPIView):
     """PUT    /inscripciones-edit/      → editar inscripción
        DELETE /inscripciones-edit/?id={id}  → eliminar inscripción
     """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
@@ -188,6 +193,7 @@ class InscripcionesViewEdit(generics.CreateAPIView):
 
 class InscripcionesListaEspera(generics.CreateAPIView):
     """POST /inscripciones/lista-espera/  → inscribirse a la lista de espera"""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     @transaction.atomic
@@ -214,6 +220,7 @@ class InscripcionesListaEspera(generics.CreateAPIView):
 
 class InscripcionesCancel(generics.CreateAPIView):
     """DELETE /inscripciones/cancel/?evento_id={id}&alumno_id={id}  → cancelar inscripción"""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     @transaction.atomic

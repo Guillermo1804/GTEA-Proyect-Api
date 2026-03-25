@@ -1,4 +1,5 @@
 from django.db import transaction
+from ..authentication import DEFAULT_API_AUTH
 from ..serializers import EventoSerializer
 from ..models import Eventos
 from rest_framework import permissions, generics, status
@@ -67,6 +68,7 @@ def _normalize_evento_payload(data: dict) -> dict:
 
 class EventosAll(generics.CreateAPIView):
     """GET /lista-eventos/  → lista de eventos"""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -79,6 +81,7 @@ class EventosView(generics.CreateAPIView):
     """GET /evento/?id={id}  → obtener evento por ID
        POST /evento/         → crear evento
     """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -122,6 +125,7 @@ class EventosViewEdit(generics.CreateAPIView):
     """PUT    /eventos-edit/      → editar evento
        DELETE /eventos-edit/?id={id}  → eliminar evento
     """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):

@@ -1,4 +1,5 @@
 from django.db import transaction
+from ..authentication import DEFAULT_API_AUTH
 from ..serializers import CategoriaSerializer
 from ..models import Categorias
 from rest_framework import permissions, generics, status
@@ -9,8 +10,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class CategoriasListCreate(generics.ListCreateAPIView):
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
+    queryset = Categorias.objects.filter(activa=True).order_by('nombre')
+    serializer_class = CategoriaSerializer
+
+
 class CategoriasAll(generics.CreateAPIView):
     """GET /lista-categorias/  → lista de categorías"""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -23,6 +32,7 @@ class CategoriasView(generics.CreateAPIView):
     """GET /categoria/?id={id}  → obtener categoría por ID
        POST /categoria/         → crear categoría
     """
+    authentication_classes = DEFAULT_API_AUTH
 
     def get(self, request, *args, **kwargs):
         categoria = get_object_or_404(Categorias, id=request.GET.get("id"))
@@ -43,6 +53,7 @@ class CategoriasViewEdit(generics.CreateAPIView):
     """PUT    /categorias-edit/  → editar categoría
        DELETE /categorias-edit/?id={id}  → eliminar categoría
     """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
