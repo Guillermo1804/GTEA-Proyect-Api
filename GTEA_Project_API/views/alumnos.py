@@ -33,6 +33,83 @@ import logging
 #Finalizacion de Sprint 2
 logger = logging.getLogger(__name__)
 
+
+class AlumnoPerfilView(generics.CreateAPIView):
+    """GET/PUT /alumnos/perfil/ → perfil del alumno autenticado."""
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        alumno = get_object_or_404(Alumnos, user=request.user)
+        user = alumno.user
+
+        matricula = alumno.matricula or ""
+        return Response(
+            {
+                # El frontend muestra `id` en el campo de matrícula.
+                # Por compatibilidad, devolvemos matrícula aquí.
+                "id": matricula,
+                "id_interno": alumno.id,
+                "nombre": user.first_name or "",
+                "apellidos": user.last_name or "",
+                "correo": user.email or "",
+                "avatarUrl": None,
+                "matricula": matricula,
+                "ocupacion": alumno.ocupacion or "",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @transaction.atomic
+    def put(self, request, *args, **kwargs):
+        alumno = get_object_or_404(Alumnos, user=request.user)
+        user = alumno.user
+
+        nombre = request.data.get("nombre")
+        apellidos = request.data.get("apellidos")
+        correo = request.data.get("correo")
+        matricula = request.data.get("matricula")
+        ocupacion = request.data.get("ocupacion")
+
+        if nombre is not None:
+            user.first_name = nombre
+        if apellidos is not None:
+            user.last_name = apellidos
+        if correo is not None:
+            correo = str(correo).strip()
+            if correo and User.objects.filter(email=correo).exclude(id=user.id).exists():
+                return Response(
+                    {"details": "El correo ya está en uso", "mensaje": "El correo ya está en uso"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            user.email = correo
+            # Mantener consistencia con login: username = email
+            if correo:
+                user.username = correo
+
+        user.save()
+
+        if matricula is not None:
+            alumno.matricula = matricula
+        if ocupacion is not None:
+            alumno.ocupacion = ocupacion
+        alumno.save()
+
+        matricula = alumno.matricula or ""
+
+        return Response(
+            {
+                "id": matricula,
+                "id_interno": alumno.id,
+                "nombre": user.first_name or "",
+                "apellidos": user.last_name or "",
+                "correo": user.email or "",
+                "avatarUrl": None,
+                "matricula": matricula,
+                "ocupacion": alumno.ocupacion or "",
+            },
+            status=status.HTTP_200_OK,
+        )
+
 class AlumnosAll(generics.CreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     def get(self, request, *args, **kwargs):

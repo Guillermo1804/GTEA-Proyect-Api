@@ -5,11 +5,32 @@ from rest_framework import permissions, generics, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 
 def _normalize_evento_payload(data: dict) -> dict:
+    def _coerce_fk_id(value):
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            if 'id' in value:
+                value = value.get('id')
+            else:
+                return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == '' or stripped.lower() in ('null', 'none', 'undefined'):
+                return None
+            if stripped.isdigit():
+                return int(stripped)
+            match = re.search(r'(\d+)', stripped)
+            if match:
+                return int(match.group(1))
+            return value
+        return value
+
     mapping = {
         'categoriaId': 'categoria',
         'sedeId': 'sede',
@@ -27,8 +48,20 @@ def _normalize_evento_payload(data: dict) -> dict:
     }
 
     for camel_key, snake_key in mapping.items():
-        if snake_key not in data and camel_key in data:
-            data[snake_key] = data[camel_key]
+        if camel_key not in data:
+            continue
+
+        # Si viene el camelCase, siempre preferirlo (evita que `categoria: null` gane sobre `categoriaId: 2`)
+        camel_value = data.get(camel_key)
+        if camel_value is not None and camel_value != '':
+            data[snake_key] = camel_value
+        elif snake_key not in data:
+            data[snake_key] = camel_value
+
+    # Coerción de llaves foráneas a IDs consistentes
+    for fk in ('categoria', 'sede', 'aula'):
+        if fk in data:
+            data[fk] = _coerce_fk_id(data.get(fk))
     return data
 
 

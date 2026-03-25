@@ -1,22 +1,7 @@
-"""
-URL configuration for GTEA_Project_API project.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.urls import path
 
-from rest_framework import generics
+from rest_framework import generics, permissions
 from rest_framework.authentication import TokenAuthentication
 
 from .models import BearerTokenAuthentication, Categorias, Sedes
@@ -41,18 +26,80 @@ urlpatterns = [
     path('auth/logout/', auth.Logout.as_view(), name='auth-logout'),
 
     # Admins
-    path('admins/', users.AdminAll.as_view(), name='admins-list'),
-    path('admins/detail/', users.AdminView.as_view(), name='admins-detail'),
-    path('admins/edit/', users.AdminsViewEdit.as_view(), name='admins-edit'),
+    path(
+        'admins/',
+        users.AdminAll.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='admins-list',
+    ),
+    path(
+        'admins/detail/',
+        users.AdminView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='admins-detail',
+    ),
+    path(
+        'admins/edit/',
+        users.AdminsViewEdit.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='admins-edit',
+    ),
 
     # Alumnos
-    path('alumnos/detail/', alumnos.AlumnosView.as_view(), name='alumnos-detail'),
-    path('alumnos/edit/', alumnos.AlumnosViewEdit.as_view(), name='alumnos-edit'),
-#       path('alumnos/perfil/', alumnos_perfil, name='alumnos-perfil-front'),
+    path(
+        'alumnos/',
+        alumnos.AlumnosAll.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='alumnos',
+    ),
+    path(
+        'alumnos/detail/',
+        alumnos.AlumnosView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='alumnos-detail',
+    ),
+    path(
+        'alumnos/edit/',
+        alumnos.AlumnosViewEdit.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='alumnos-edit',
+    ),
+    path(
+        'alumnos/perfil/',
+        alumnos.AlumnoPerfilView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='alumnos-perfil',
+    ),
 
     # Organizadores
-    path('organizadores/detail/', organizador.OrganizadoresView.as_view(), name='organizadores-detail'),
-    path('organizadores/edit/', organizador.OrganizadoresViewEdit.as_view(), name='organizadores-edit'),
+    path(
+        'organizadores/',
+        organizador.OrganizadorAll.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='organizadores',
+    ),
+    path(
+        'organizadores/detail/',
+        organizador.OrganizadoresView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='organizadores-detail',
+    ),
+    path(
+        'organizadores/edit/',
+        organizador.OrganizadoresViewEdit.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='organizadores-edit',
+    ),
 
     # Categorías
     path(
@@ -60,11 +107,25 @@ urlpatterns = [
         generics.ListCreateAPIView.as_view(
             queryset=Categorias.objects.filter(activa=True).order_by('nombre'),
             serializer_class=CategoriaSerializer,
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+            permission_classes=(permissions.IsAuthenticated,),
         ),
         name='categorias',
     ),
-    path('categorias/detail/', categorias.CategoriasView.as_view(), name='categorias-detail'),
-    path('categorias/edit/', categorias.CategoriasViewEdit.as_view(), name='categorias-edit'),
+    path(
+        'categorias/detail/',
+        categorias.CategoriasView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='categorias-detail',
+    ),
+    path(
+        'categorias/edit/',
+        categorias.CategoriasViewEdit.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='categorias-edit',
+    ),
 
     # Sedes
     path(
@@ -72,11 +133,25 @@ urlpatterns = [
         generics.ListCreateAPIView.as_view(
             queryset=Sedes.objects.filter(activa=True).order_by('nombre'),
             serializer_class=SedeSerializer,
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+            permission_classes=(permissions.IsAuthenticated,),
         ),
         name='sedes',
     ),
-    path('sedes/detail/', sedes.SedesView.as_view(), name='sedes-detail'),
-    path('sedes/edit/', sedes.SedesViewEdit.as_view(), name='sedes-edit'),
+    path(
+        'sedes/detail/',
+        sedes.SedesView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='sedes-detail',
+    ),
+    path(
+        'sedes/edit/',
+        sedes.SedesViewEdit.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='sedes-edit',
+    ),
 
     # Aulas
     path(
@@ -125,12 +200,44 @@ urlpatterns = [
     ),
 
     # Inscripciones
-    path('inscripciones/detail/', inscripciones.InscripcionesView.as_view(), name='inscripciones-detail'),
-    path('inscripciones/edit/', inscripciones.InscripcionesViewEdit.as_view(), name='inscripciones-edit'),
+    path(
+        'inscripciones/',
+        inscripciones.InscripcionesView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='inscripciones',
+    ),
+    path(
+        'inscripciones/mis-eventos/',
+        inscripciones.InscripcionesMisEventos.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='inscripciones-mis-eventos',
+    ),
+    path(
+        'inscripciones/detail/',
+        inscripciones.InscripcionesView.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='inscripciones-detail',
+    ),
+    path(
+        'inscripciones/edit/',
+        inscripciones.InscripcionesViewEdit.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='inscripciones-edit',
+    ),
  #   path('inscripciones/lista-espera/', inscripciones_lista_espera_front, name='inscripciones-lista-espera'),
    # path('inscripciones/mis-eventos/', inscripciones_mis_eventos, name='inscripciones-mis-eventos'),
     #path('inscripciones/cancel/', inscripciones_cancel_front, name='inscripciones-cancel'),
 
     # Reportes
-    path('reportes/resumen/', reportes.ReportesResumen.as_view(), name='reportes-resumen'),
+    path(
+        'reportes/resumen/',
+        reportes.ReportesResumen.as_view(
+            authentication_classes=(BearerTokenAuthentication, TokenAuthentication),
+        ),
+        name='reportes-resumen',
+    ),
 ]
