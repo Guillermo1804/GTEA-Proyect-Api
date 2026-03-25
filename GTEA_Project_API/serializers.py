@@ -17,11 +17,6 @@ class UserSerializer(serializers.ModelSerializer):
         if not data.get('username') and data.get('email'):
             data['username'] = data.get('email')
 
-        # Validate unique email for creation
-        email = data.get('email')
-        if email and User.objects.filter(email=email).exists():
-            raise serializers.ValidationError({'email': ['Este email ya está registrado.']})
-
         return data
 
     def create(self, validated_data):
@@ -94,6 +89,7 @@ class EventoSerializer(serializers.ModelSerializer):
     organizador_nombre = serializers.SerializerMethodField()
     inscritos = serializers.IntegerField(read_only=True)
     imagen_portada = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+    is_full = serializers.SerializerMethodField()
 
     class Meta:
         model = Eventos
@@ -103,13 +99,17 @@ class EventoSerializer(serializers.ModelSerializer):
             "modalidad", "sede", "sede_nombre", "aula", "aula_nombre",
             "cupo_maximo", "costo_entrada", "lista_espera",
             "publicar_inmediatamente", "es_organizador", "organizador", "organizador_nombre",
-            "status", "inscritos", "creation", "update",
+            "status", "inscritos", "is_full", "creation", "update",
         )
 
     def get_organizador_nombre(self, obj):
         if obj.organizador:
             return f"{obj.organizador.first_name} {obj.organizador.last_name}"
         return ''
+
+    def get_is_full(self, obj):
+        inscritos = obj.inscripciones.filter(tipo='inscrito').count()
+        return inscritos >= obj.cupo_maximo
 
 
 class InscripcionSerializer(serializers.ModelSerializer):

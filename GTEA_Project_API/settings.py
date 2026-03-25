@@ -11,6 +11,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +24,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t(gj*@j$izsz4$l*mw+4z*-yhkk-1l*pi0!z4i%62jo8ko6(&@'
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-dev-only-not-for-production'
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = os.environ.get(
+    'ALLOWED_HOSTS', 'localhost'
+).split(',')
 
 
 # Application definition
@@ -81,11 +90,11 @@ WSGI_APPLICATION = 'GTEA_Project_API.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'gtea_proyecto_api',  # El nombre exacto que pusiste en phpMyAdmin
-        'USER': 'root',               # Usuario por defecto de XAMPP
-        'PASSWORD': '',               # En XAMPP, el root suele no tener contraseña
-        'HOST': '127.0.0.1',          # O 'localhost'
-        'PORT': '3307',               # Puerto por defecto de MySQL
+        'NAME': os.environ.get('DB_NAME', 'gtea_proyecto_api'),
+        'USER': os.environ.get('DB_USER', 'root'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '3307'),
     }
 }
 
@@ -134,10 +143,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CORS settings (development)
 # Allow the Angular dev server origin. For quick development you can set
 # CORS_ALLOW_ALL_ORIGINS = True, but prefer CORS_ALLOWED_ORIGINS in most cases.
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:4200',
-    'http://127.0.0.1:4200',
-]
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    'CORS_ALLOWED_ORIGINS',
+    'http://localhost:4200'
+).split(',')
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -172,16 +181,19 @@ LOGGING = {
 # Views already require `IsAuthenticated`, so ensure Token auth is available.
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'GTEA_Project_API.authentication.CookieTokenAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.authentication.SessionAuthentication',
+        'GTEA_Project_API.models.BearerTokenAuthentication',
     ),
 }
 
-# Auth token cookie settings (development defaults)
-# NOTE: If you later deploy behind HTTPS, set AUTH_TOKEN_COOKIE_SECURE=True
-AUTH_TOKEN_COOKIE_NAME = 'auth_token'
-AUTH_TOKEN_COOKIE_SECURE = False
-AUTH_TOKEN_COOKIE_SAMESITE = 'Lax'
-AUTH_TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 days
+# NOTE:
+# - Permissions are set per-view to mirror sistema-fcc-api (public create endpoints,
+#   protected list/edit endpoints).
+# - Cookie-based auth has been removed; use `Authorization: Bearer <token>`.
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# CORS settings (development)
+# Mirror sistema-fcc-api's permissive dev behavior when DEBUG=True.
+if DEBUG:
+    CORS_ORIGIN_ALLOW_ALL = True

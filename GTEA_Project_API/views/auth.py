@@ -29,8 +29,6 @@ from django.template.loader import render_to_string
 import string
 import random
 
-from GTEA_Project_API.authentication import clear_auth_token_cookie, set_auth_token_cookie
-
 class CustomAuthToken(ObtainAuthToken):
 
     def post(self, request, *args, **kwargs):
@@ -54,24 +52,18 @@ class CustomAuthToken(ObtainAuthToken):
                 alumno = AlumnoSerializer(alumno).data
                 alumno["token"] = token.key
                 alumno["rol"] = "alumno"
-                response = Response(alumno, 200)
-                set_auth_token_cookie(response, token.key)
-                return response
+                return Response(alumno, 200)
             if role_names == 'organizador':
                 organizador = Organizadores.objects.filter(user=user).first()
                 organizador = OrganizadorSerializer(organizador).data
                 organizador["token"] = token.key
                 organizador["rol"] = "organizador"
-                response = Response(organizador, 200)
-                set_auth_token_cookie(response, token.key)
-                return response
+                return Response(organizador, 200)
             if role_names == 'administrador':
                 user = UserSerializer(user, many=False).data
                 user['token'] = token.key
                 user["rol"] = "administrador"
-                response = Response(user, 200)
-                set_auth_token_cookie(response, token.key)
-                return response
+                return Response(user, 200)
             else:
                 return Response({"details":"Forbidden"},403)
                 pass
@@ -92,11 +84,7 @@ class Logout(generics.GenericAPIView):
             token = Token.objects.get(user=user)
             token.delete()
 
-            response = Response({'logout': True})
-            clear_auth_token_cookie(response)
-            return response
+            return Response({'logout': True})
 
 
-        response = Response({'logout': False})
-        clear_auth_token_cookie(response)
-        return response
+        return Response({'logout': False})
