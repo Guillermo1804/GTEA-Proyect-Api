@@ -51,11 +51,13 @@ urlpatterns = [
     path('eventos/edit/', eventos.EventosViewEdit.as_view(), name='eventos-edit'),
     path('eventos/imagen-upload/', eventos.EventoImagenUpload.as_view(), name='eventos-imagen-upload'),
 
-    # Inscripciones
-    path('inscripciones/', inscripciones.InscripcionesView.as_view(), name='inscripciones'),
+    # Inscripciones (rutas específicas antes de la raíz /inscripciones/)
     path('inscripciones/mis-eventos/', inscripciones.InscripcionesMisEventos.as_view(), name='inscripciones-mis-eventos'),
+    path('inscripciones/cancel/', inscripciones.InscripcionesCancel.as_view(), name='inscripciones-cancel'),
+    path('inscripciones/lista-espera/', inscripciones.InscripcionesListaEspera.as_view(), name='inscripciones-lista-espera'),
     path('inscripciones/detail/', inscripciones.InscripcionesView.as_view(), name='inscripciones-detail'),
     path('inscripciones/edit/', inscripciones.InscripcionesViewEdit.as_view(), name='inscripciones-edit'),
+    path('inscripciones/', inscripciones.InscripcionesView.as_view(), name='inscripciones'),
 
     # Reportes
     path('reportes/resumen/', reportes.ReportesResumen.as_view(), name='reportes-resumen'),
