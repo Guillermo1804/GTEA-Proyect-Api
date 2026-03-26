@@ -90,7 +90,7 @@ class EventoSerializer(serializers.ModelSerializer):
     sede_nombre = serializers.CharField(source="sede.nombre", read_only=True, default='')
     aula_nombre = serializers.CharField(source="aula.nombre", read_only=True, default='')
     organizador_nombre = serializers.SerializerMethodField()
-    inscritos = serializers.IntegerField(read_only=True)
+    inscritos = serializers.SerializerMethodField()
     imagen_portada = serializers.URLField(required=False, allow_blank=True, allow_null=True)
     is_full = serializers.SerializerMethodField()
 
@@ -111,10 +111,15 @@ class EventoSerializer(serializers.ModelSerializer):
         return ''
 
     def get_is_full(self, obj):
-        n = getattr(obj, 'inscritos', None)
+        n = getattr(obj, 'num_inscritos', None)
         if n is None:
-            n = obj.inscripciones.filter(tipo='inscrito').count()
+            # Fallback a la propiedad del modelo (N+1 si no está anotado)
+            n = obj.inscritos
         return n >= obj.cupo_maximo
+
+    def get_inscritos(self, obj):
+        # Preferir el valor anotado por la vista
+        return getattr(obj, 'num_inscritos', obj.inscritos)
 
 
 class InscripcionSerializer(serializers.ModelSerializer):
