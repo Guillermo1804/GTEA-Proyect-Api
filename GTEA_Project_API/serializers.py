@@ -32,30 +32,33 @@ class AdminSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
     email = serializers.CharField(source="user.email", read_only=True)
+    is_active = serializers.BooleanField(source="user.is_active", read_only=True)
 
     class Meta:
         model = Administradores
-        fields = ("id", "user", "clave_admin", "creation", "update", "first_name", "last_name", "email")
+        fields = ("id", "user", "clave_admin", "creation", "update", "first_name", "last_name", "email", "is_active")
 
 
 class AlumnoSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
     email = serializers.CharField(source="user.email", read_only=True)
+    is_active = serializers.BooleanField(source="user.is_active", read_only=True)
 
     class Meta:
         model = Alumnos
-        fields = ("id", "user", "matricula", "ocupacion", "creation", "update", "first_name", "last_name", "email")
+        fields = ("id", "user", "matricula", "ocupacion", "creation", "update", "first_name", "last_name", "email", "is_active")
 
 
 class OrganizadorSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
     email = serializers.CharField(source="user.email", read_only=True)
+    is_active = serializers.BooleanField(source="user.is_active", read_only=True)
 
     class Meta:
         model = Organizadores
-        fields = ("id", "user", "id_trabajador", "creation", "update", "first_name", "last_name", "email")
+        fields = ("id", "user", "id_trabajador", "creation", "update", "first_name", "last_name", "email", "is_active")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -108,8 +111,10 @@ class EventoSerializer(serializers.ModelSerializer):
         return ''
 
     def get_is_full(self, obj):
-        inscritos = obj.inscripciones.filter(tipo='inscrito').count()
-        return inscritos >= obj.cupo_maximo
+        n = getattr(obj, 'inscritos', None)
+        if n is None:
+            n = obj.inscripciones.filter(tipo='inscrito').count()
+        return n >= obj.cupo_maximo
 
 
 class InscripcionSerializer(serializers.ModelSerializer):

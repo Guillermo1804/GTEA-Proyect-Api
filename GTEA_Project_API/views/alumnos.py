@@ -34,6 +34,15 @@ import logging
 #Finalizacion de Sprint 2
 logger = logging.getLogger(__name__)
 
+User = get_user_model()
+
+
+def _is_organizador_user(user) -> bool:
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and user.groups.filter(name="organizador").exists()
+    )
+
 
 class AlumnoPerfilView(generics.CreateAPIView):
     """GET/PUT /alumnos/perfil/ → perfil del alumno autenticado."""
@@ -116,7 +125,7 @@ class AlumnosAll(generics.CreateAPIView):
     authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     def get(self, request, *args, **kwargs):
-        alumnos = Alumnos.objects.filter(user__is_active = 1).order_by("id")
+        alumnos = Alumnos.objects.all().order_by("id")
         lista = AlumnoSerializer(alumnos, many=True).data
         
         return Response(lista, 200)
@@ -176,15 +185,36 @@ class AlumnosViewEdit (generics.CreateAPIView):
     authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     def put(self, request, *args, **kwargs):
-        # iduser=request.data["id"]
-        alumno = get_object_or_404(Alumnos, id=request.data["id"])
-        alumno.matricula = request.data.get("matricula", alumno.matricula)
-        alumno.ocupacion = request.data.get("ocupacion", alumno.ocupacion)
+        from GTEA_Project_API.views.users import _request_user_is_admin
+
+        data = request.data
+        alumno_id = data.get("id")
+        if alumno_id in (None, ""):
+            alumno_id = data.get("alumno_id")
+        if alumno_id in (None, ""):
+            alumno = get_object_or_404(Alumnos, user=request.user)
+        else:
+            alumno = get_object_or_404(Alumnos, id=alumno_id)
+            if alumno.user_id != request.user.id:
+                if not _request_user_is_admin(request.user) and not _is_organizador_user(request.user):
+                    return Response({"details": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        fn = data.get("first_name")
+        if fn is None and "nombre" in data:
+            fn = data.get("nombre")
+        ln = data.get("last_name")
+        if ln is None and "apellidos" in data:
+            ln = data.get("apellidos")
+        if fn is not None:
+            alumno.user.first_name = fn
+        if ln is not None:
+            alumno.user.last_name = ln
+        if "matricula" in data:
+            alumno.matricula = data.get("matricula", alumno.matricula)
+        if "ocupacion" in data:
+            alumno.ocupacion = data.get("ocupacion", alumno.ocupacion)
+        alumno.user.save()
         alumno.save()
-        temp = alumno.user
-        temp.first_name = request.data.get("first_name", temp.first_name)
-        temp.last_name = request.data.get("last_name", temp.last_name)
-        temp.save()
         user = AlumnoSerializer(alumno, many=False).data
 
         return Response(user,200)
@@ -197,3 +227,25 @@ class AlumnosViewEdit (generics.CreateAPIView):
             return Response({"details": "Alumno eliminado"})
         except Exception as e:
             return Response({"details": "Algo pasó al eliminar"})
+
+
+class AlumnoIsActivePatch(APIView):
+    """PATCH /alumnos/<pk>/ — solo administradores; body: { is_active: bool }"""
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def patch(self, request, pk, *args, **kwargs):
+        from GTEA_Project_API.views.users import _request_user_is_admin
+
+        if not _request_user_is_admin(request.user):
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        if "is_active" not in request.data:
+            return Response({"detail": "is_active es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+        alumno = get_object_or_404(Alumnos, pk=pk)
+        val = request.data.get("is_active")
+        if isinstance(val, str):
+            alumno.user.is_active = val.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            alumno.user.is_active = bool(val)
+        alumno.user.save(update_fields=["is_active"])
+        return Response(AlumnoSerializer(alumno).data, status=status.HTTP_200_OK)
