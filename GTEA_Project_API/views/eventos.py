@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Count, Q
 from ..authentication import DEFAULT_API_AUTH
 from ..serializers import EventoSerializer
 from ..models import Eventos
@@ -120,18 +121,40 @@ def _normalize_evento_payload(data: dict) -> dict:
     return data
 
 
+def _eventos_qs_with_inscritos():
+    """Alineado con Eventos.inscritos (solo tipo 'inscrito')."""
+    return Eventos.objects.annotate(
+        inscritos=Count('inscripciones', filter=Q(inscripciones__tipo='inscrito')),
+    )
+
+
 class EventosAll(generics.CreateAPIView):
     """GET /lista-eventos/  → lista de eventos"""
     authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
-        eventos = _eventos_queryset_for_user(
-            request,
-            Eventos.objects.all().order_by("-fecha_inicio"),
-        )
+        base = _eventos_qs_with_inscritos().order_by("-fecha_inicio")
+        eventos = _eventos_queryset_for_user(request, base)
         lista = EventoSerializer(eventos, many=True).data
         return Response(lista, 200)
+
+
+class EventosPublicList(generics.GenericAPIView):
+    """
+    GET /eventos/public/ — catálogo público (sin autenticación).
+    Solo eventos en estado Activo.
+    """
+    permission_classes = (permissions.AllowAny,)
+    authentication_classes = ()
+
+    def get(self, request, *args, **kwargs):
+        qs = (
+            _eventos_qs_with_inscritos()
+            .filter(status='Activo')
+            .order_by('-fecha_inicio')
+        )
+        return Response(EventoSerializer(qs, many=True).data, status=status.HTTP_200_OK)
 
 
 class EventosView(generics.CreateAPIView):
@@ -143,20 +166,23 @@ class EventosView(generics.CreateAPIView):
 
     def get(self, request, *args, **kwargs):
         evento_id = request.GET.get("id")
+        base_qs = _eventos_qs_with_inscritos()
         if evento_id:
             if _is_admin(request.user):
-                evento = get_object_or_404(Eventos, id=evento_id)
+                evento = get_object_or_404(base_qs, id=evento_id)
             elif _is_organizador(request.user):
-                evento = get_object_or_404(Eventos, id=evento_id, organizador=request.user)
+                evento = get_object_or_404(
+                    _eventos_queryset_for_user(request, base_qs),
+                    id=evento_id,
+                )
             else:
-                # Para otros roles mantenemos el comportamiento actual (ocultar/modificar no aplica aquí).
-                evento = get_object_or_404(Eventos, id=evento_id)
+                evento = get_object_or_404(base_qs, id=evento_id)
             data = EventoSerializer(evento, many=False).data
             return Response(data, 200)
 
         eventos = _eventos_queryset_for_user(
             request,
-            Eventos.objects.all().order_by("-fecha_inicio"),
+            base_qs.order_by("-fecha_inicio"),
         )
         lista = EventoSerializer(eventos, many=True).data
         return Response(lista, 200)

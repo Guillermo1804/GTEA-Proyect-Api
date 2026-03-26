@@ -18,17 +18,20 @@ urlpatterns = [
     path('admins/', users.AdminAll.as_view(), name='admins-list'),
     path('admins/detail/', users.AdminView.as_view(), name='admins-detail'),
     path('admins/edit/', users.AdminsViewEdit.as_view(), name='admins-edit'),
+    path('admins/<int:pk>/', users.AdminIsActivePatch.as_view(), name='admins-patch-active'),
 
     # Alumnos
     path('alumnos/', alumnos.AlumnosAll.as_view(), name='alumnos'),
     path('alumnos/detail/', alumnos.AlumnosView.as_view(), name='alumnos-detail'),
     path('alumnos/edit/', alumnos.AlumnosViewEdit.as_view(), name='alumnos-edit'),
+    path('alumnos/<int:pk>/', alumnos.AlumnoIsActivePatch.as_view(), name='alumnos-patch-active'),
     path('alumnos/perfil/', alumnos.AlumnoPerfilView.as_view(), name='alumnos-perfil'),
 
     # Organizadores
     path('organizadores/', organizador.OrganizadorAll.as_view(), name='organizadores'),
     path('organizadores/detail/', organizador.OrganizadoresView.as_view(), name='organizadores-detail'),
     path('organizadores/edit/', organizador.OrganizadoresViewEdit.as_view(), name='organizadores-edit'),
+    path('organizador/<int:pk>/', organizador.OrganizadorIsActivePatch.as_view(), name='organizador-patch-active'),
 
     # Categorías
     path('categorias/', categorias.CategoriasListCreate.as_view(), name='categorias'),
@@ -45,7 +48,11 @@ urlpatterns = [
     path('aulas/detail/', sedes.AulasView.as_view(), name='aulas-detail'),
     path('aulas/edit/', sedes.AulasViewEdit.as_view(), name='aulas-edit'),
 
+    # Usuarios (rol)
+    path('users/<int:pk>/cambiar-rol/', users.CambiarRolView.as_view(), name='users-cambiar-rol'),
+
     # Eventos
+    path('eventos/public/', eventos.EventosPublicList.as_view(), name='eventos-public'),
     path('eventos/', eventos.EventosView.as_view(), name='eventos'),
     path('eventos/detail/', eventos.EventosView.as_view(), name='eventos-detail'),
     path('eventos/edit/', eventos.EventosViewEdit.as_view(), name='eventos-edit'),

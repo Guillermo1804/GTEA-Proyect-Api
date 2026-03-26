@@ -38,7 +38,7 @@ class OrganizadorAll(generics.CreateAPIView):
     authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     def get(self, request, *args, **kwargs):
-        organizador = Organizadores.objects.filter(user__is_active = 1).order_by("id")
+        organizador = Organizadores.objects.all().order_by("id")
         organizador = OrganizadorSerializer(organizador, many=True).data
 
         return Response(organizador, 200)
@@ -96,13 +96,21 @@ class OrganizadoresViewEdit(generics.CreateAPIView):
     authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     def put(self, request, *args, **kwargs):
-        # iduser=request.data["id"]
-        organizador = get_object_or_404(Organizadores, id=request.data["id"])
+        org_id = request.data.get("id")
+        if org_id is None:
+            return Response({"details": "Falta el campo id"}, status=status.HTTP_400_BAD_REQUEST)
+        organizador = get_object_or_404(Organizadores, id=org_id)
         organizador.id_trabajador = request.data.get("id_trabajador", organizador.id_trabajador)
         organizador.save()
         temp = organizador.user
-        temp.first_name = request.data.get("first_name", temp.first_name)
-        temp.last_name = request.data.get("last_name", temp.last_name)
+        if "first_name" in request.data:
+            temp.first_name = request.data.get("first_name", temp.first_name)
+        if "last_name" in request.data:
+            temp.last_name = request.data.get("last_name", temp.last_name)
+        if password := request.data.get("password"):
+            pw = str(password).strip()
+            if pw:
+                temp.set_password(pw)
         temp.save()
         user = OrganizadorSerializer(organizador, many=False).data
 
@@ -116,3 +124,25 @@ class OrganizadoresViewEdit(generics.CreateAPIView):
             return Response({"details": "Organizador eliminado"})
         except Exception as e:
             return Response({"details": "Algo pasó al eliminar"})
+
+
+class OrganizadorIsActivePatch(APIView):
+    """PATCH /organizador/<pk>/ — solo administradores; body: { is_active: bool }"""
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def patch(self, request, pk, *args, **kwargs):
+        from GTEA_Project_API.views.users import _request_user_is_admin
+
+        if not _request_user_is_admin(request.user):
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        if "is_active" not in request.data:
+            return Response({"detail": "is_active es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+        organizador = get_object_or_404(Organizadores, pk=pk)
+        val = request.data.get("is_active")
+        if isinstance(val, str):
+            organizador.user.is_active = val.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            organizador.user.is_active = bool(val)
+        organizador.user.save(update_fields=["is_active"])
+        return Response(OrganizadorSerializer(organizador).data, status=status.HTTP_200_OK)
