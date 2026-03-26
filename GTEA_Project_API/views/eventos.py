@@ -124,7 +124,7 @@ def _normalize_evento_payload(data: dict) -> dict:
 def _eventos_qs_with_inscritos():
     """Alineado con Eventos.inscritos (solo tipo 'inscrito')."""
     return Eventos.objects.annotate(
-        inscritos=Count('inscripciones', filter=Q(inscripciones__tipo='inscrito')),
+        num_inscritos=Count('inscripciones', filter=Q(inscripciones__tipo='inscrito')),
     )
 
 
