@@ -1,4 +1,5 @@
 from django.db import transaction
+from ..authentication import DEFAULT_API_AUTH
 from ..serializers import SedeSerializer, AulaSerializer
 from ..models import Sedes, Aulas
 from rest_framework import permissions, generics, status
@@ -24,8 +25,17 @@ def _normalize_aula_payload(data: dict) -> dict:
 # SEDES
 # ═══════════════════════════════════════════════
 
+
+class SedesListCreate(generics.ListCreateAPIView):
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
+    queryset = Sedes.objects.filter(activa=True).order_by('nombre')
+    serializer_class = SedeSerializer
+
+
 class SedesAll(generics.CreateAPIView):
     """GET /lista-sedes/  → lista de sedes"""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -38,6 +48,7 @@ class SedesView(generics.CreateAPIView):
     """GET /sede/?id={id}  → obtener sede por ID
        POST /sede/         → crear sede
     """
+    authentication_classes = DEFAULT_API_AUTH
 
     def get(self, request, *args, **kwargs):
         sede = get_object_or_404(Sedes, id=request.GET.get("id"))
@@ -58,6 +69,7 @@ class SedesViewEdit(generics.CreateAPIView):
     """PUT    /sedes-edit/      → editar sede
        DELETE /sedes-edit/?id={id}  → eliminar sede
     """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
@@ -91,6 +103,7 @@ class SedesViewEdit(generics.CreateAPIView):
 
 class AulasAll(generics.CreateAPIView):
     """GET /lista-aulas/?sede_id={id}  → lista de aulas (filtro opcional por sede)"""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -107,6 +120,7 @@ class AulasView(generics.CreateAPIView):
        POST /aula/         → crear aula
     """
 
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -139,6 +153,7 @@ class AulasViewEdit(generics.CreateAPIView):
     """PUT    /aulas-edit/      → editar aula
        DELETE /aulas-edit/?id={id}  → eliminar aula
     """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):

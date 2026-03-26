@@ -1,4 +1,5 @@
 from django.db import transaction
+from ..authentication import DEFAULT_API_AUTH
 from ..serializers import InscripcionSerializer
 from ..models import Inscripciones, Eventos, Alumnos
 from rest_framework import permissions, generics, status
@@ -30,6 +31,7 @@ def _estado_evento_para_alumno(evento, inscripcion) -> str:
 
 class InscripcionesMisEventos(generics.CreateAPIView):
     """GET /inscripciones/mis-eventos/ → eventos del alumno autenticado."""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -87,6 +89,7 @@ class InscripcionesMisEventos(generics.CreateAPIView):
 
 class InscripcionesAll(generics.CreateAPIView):
     """GET /lista-inscripciones/  → listar inscripciones (filtrable por evento_id o alumno_id)."""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -106,6 +109,7 @@ class InscripcionesView(generics.CreateAPIView):
     """GET /inscripcion/?id={id}  → obtener inscripción por ID
        POST /inscripcion/         → inscribirse a un evento
     """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -165,6 +169,7 @@ class InscripcionesViewEdit(generics.CreateAPIView):
     """PUT    /inscripciones-edit/      → editar inscripción
        DELETE /inscripciones-edit/?id={id}  → eliminar inscripción
     """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
@@ -186,9 +191,27 @@ class InscripcionesViewEdit(generics.CreateAPIView):
             return Response({"details": "Algo pasó al eliminar"}, status=status.HTTP_200_OK)
 
 
-class InscripcionesListaEspera(generics.CreateAPIView):
-    """POST /inscripciones/lista-espera/  → inscribirse a la lista de espera"""
+class InscripcionesListaEspera(generics.GenericAPIView):
+    """GET /inscripciones/lista-espera/?evento={id}  → listar lista de espera del evento
+       POST /inscripciones/lista-espera/  → inscribir a lista de espera (evento_id + alumno_id)
+    """
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        evento_id = request.GET.get("evento") or request.GET.get("evento_id")
+        if not evento_id:
+            return Response(
+                {"detail": "Parámetro evento o evento_id es requerido"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        qs = (
+            Inscripciones.objects.filter(evento_id=evento_id, tipo="lista_espera")
+            .select_related("alumno", "alumno__user", "evento")
+            .order_by("creation")
+        )
+        lista = InscripcionSerializer(qs, many=True).data
+        return Response(lista, status=status.HTTP_200_OK)
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
@@ -214,6 +237,7 @@ class InscripcionesListaEspera(generics.CreateAPIView):
 
 class InscripcionesCancel(generics.GenericAPIView):
     """DELETE /inscripciones/cancel/?evento_id={id}&alumno_id={id}  → cancelar inscripción"""
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
 
     @transaction.atomic

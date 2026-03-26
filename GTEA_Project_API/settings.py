@@ -33,7 +33,7 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.environ.get(
-    'ALLOWED_HOSTS', 'localhost'
+    'ALLOWED_HOSTS', '127.0.0.1'
 ).split(',')
 
 
@@ -192,6 +192,11 @@ REST_FRAMEWORK = {
 # - Cookie-based auth has been removed; use `Authorization: Bearer <token>`.
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Media uploads (imagenes de portada de eventos).
+# El backend guarda archivos en `MEDIA_ROOT` y expone su URL via `MEDIA_URL`.
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # CORS settings (development)
 # Mirror sistema-fcc-api's permissive dev behavior when DEBUG=True.
