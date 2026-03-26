@@ -7,6 +7,10 @@ from rest_framework.authentication import TokenAuthentication, get_authorization
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from .models import BearerTokenAuthentication
+
+DEFAULT_API_AUTH = (BearerTokenAuthentication, TokenAuthentication)
+
 
 class CookieTokenAuthentication(TokenAuthentication):
     """DRF TokenAuthentication that also accepts the token from an HttpOnly cookie.

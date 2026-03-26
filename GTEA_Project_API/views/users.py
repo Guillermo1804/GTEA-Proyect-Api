@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.db.models import *
 from django.db import transaction
+from ..authentication import DEFAULT_API_AUTH
 from ..serializers import *
 from ..models import *
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication, TokenAuthentication
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 class AdminAll(generics.CreateAPIView):
     #Esta linea se usa para pedir el token de autenticación de inicio de sesión
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     def get(self, request, *args, **kwargs):
         admin = Administradores.objects.filter(user__is_active = 1).order_by("id")
@@ -47,6 +49,7 @@ class AdminAll(generics.CreateAPIView):
 class AdminView(generics.CreateAPIView):
     #Obtener usuario por ID
     # permission_classes = (permissions.IsAuthenticated,)
+    authentication_classes = DEFAULT_API_AUTH
     def get(self, request, *args, **kwargs):
         admin = get_object_or_404(Administradores, id = request.GET.get("id"))
         admin = AdminSerializer(admin, many=False).data
@@ -92,6 +95,7 @@ class AdminView(generics.CreateAPIView):
 
 
 class AdminsViewEdit(generics.CreateAPIView):
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     #Contar el total de cada tipo de usuarios
     def get(self, request, *args, **kwargs):

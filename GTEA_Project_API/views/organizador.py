@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.db.models import *
 from django.db import transaction
+from GTEA_Project_API.authentication import DEFAULT_API_AUTH
 from GTEA_Project_API.serializers import *
 from GTEA_Project_API.models import *
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication, TokenAuthentication
@@ -34,6 +35,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class OrganizadorAll(generics.CreateAPIView):
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     def get(self, request, *args, **kwargs):
         organizador = Organizadores.objects.filter(user__is_active = 1).order_by("id")
@@ -44,7 +46,8 @@ class OrganizadorAll(generics.CreateAPIView):
 class OrganizadoresView(generics.CreateAPIView):
     #Obtener usuario por ID
     # permission_classes = (permissions.IsAuthenticated,)
-    
+    authentication_classes = DEFAULT_API_AUTH
+
     def get(self, request, *args, **kwargs):
         organizador = get_object_or_404(Organizadores, id = request.GET.get("id"))
         organizador = OrganizadorSerializer(organizador, many=False).data
@@ -90,6 +93,7 @@ class OrganizadoresView(generics.CreateAPIView):
 
 #Se tiene que modificar la parte de edicion y eliminar
 class OrganizadoresViewEdit(generics.CreateAPIView):
+    authentication_classes = DEFAULT_API_AUTH
     permission_classes = (permissions.IsAuthenticated,)
     def put(self, request, *args, **kwargs):
         # iduser=request.data["id"]
