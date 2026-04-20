@@ -36,6 +36,10 @@ ALLOWED_HOSTS = os.environ.get(
     'ALLOWED_HOSTS', '127.0.0.1'
 ).split(',')
 
+# Tell Django to trust the X-Forwarded-Proto header from nginx/reverse-proxy
+# so that request.build_absolute_uri() generates https:// URLs in production.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # Application definition
 
