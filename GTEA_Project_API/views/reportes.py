@@ -1,3 +1,4 @@
+from ..authentication import DEFAULT_API_AUTH
 from ..models import Eventos, Inscripciones, Categorias, Sedes, Alumnos
 from rest_framework import permissions, generics
 from rest_framework.response import Response
@@ -5,12 +6,12 @@ from django.db.models import Count, Q
 import logging
 
 logger = logging.getLogger(__name__)
-from ..permissions import IsAdminOrAuthenticated
 
 
 class ReportesResumen(generics.CreateAPIView):
-    """GET /reportes/resumen/  → métricas generales para dashboard de reportes"""
-    permission_classes = (IsAdminOrAuthenticated,)
+    """GET /reportes-resumen/  → métricas generales para dashboard de reportes"""
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         total_eventos = Eventos.objects.count()

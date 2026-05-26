@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.db.models import *
 from django.db import transaction
+from GTEA_Project_API.authentication import DEFAULT_API_AUTH
 from GTEA_Project_API.serializers import *
 from GTEA_Project_API.models import *
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication, TokenAuthentication
@@ -32,12 +33,99 @@ import json
 import logging
 #Finalizacion de Sprint 2
 logger = logging.getLogger(__name__)
-from ..permissions import IsAdminOrAuthenticated
+
+User = get_user_model()
+
+
+def _is_organizador_user(user) -> bool:
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and user.groups.filter(name="organizador").exists()
+    )
+
+
+class AlumnoPerfilView(generics.CreateAPIView):
+    """GET/PUT /alumnos/perfil/ → perfil del alumno autenticado."""
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        alumno = get_object_or_404(Alumnos, user=request.user)
+        user = alumno.user
+
+        matricula = alumno.matricula or ""
+        return Response(
+            {
+                # El frontend muestra `id` en el campo de matrícula.
+                # Por compatibilidad, devolvemos matrícula aquí.
+                "id": matricula,
+                "id_interno": alumno.id,
+                "nombre": user.first_name or "",
+                "apellidos": user.last_name or "",
+                "correo": user.email or "",
+                "avatarUrl": None,
+                "matricula": matricula,
+                "ocupacion": alumno.ocupacion or "",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @transaction.atomic
+    def put(self, request, *args, **kwargs):
+        alumno = get_object_or_404(Alumnos, user=request.user)
+        user = alumno.user
+
+        nombre = request.data.get("nombre")
+        apellidos = request.data.get("apellidos")
+        correo = request.data.get("correo")
+        matricula = request.data.get("matricula")
+        ocupacion = request.data.get("ocupacion")
+
+        if nombre is not None:
+            user.first_name = nombre
+        if apellidos is not None:
+            user.last_name = apellidos
+        if correo is not None:
+            correo = str(correo).strip()
+            if correo and User.objects.filter(email=correo).exclude(id=user.id).exists():
+                return Response(
+                    {"details": "El correo ya está en uso", "mensaje": "El correo ya está en uso"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            user.email = correo
+            # Mantener consistencia con login: username = email
+            if correo:
+                user.username = correo
+
+        user.save()
+
+        if matricula is not None:
+            alumno.matricula = matricula
+        if ocupacion is not None:
+            alumno.ocupacion = ocupacion
+        alumno.save()
+
+        matricula = alumno.matricula or ""
+
+        return Response(
+            {
+                "id": matricula,
+                "id_interno": alumno.id,
+                "nombre": user.first_name or "",
+                "apellidos": user.last_name or "",
+                "correo": user.email or "",
+                "avatarUrl": None,
+                "matricula": matricula,
+                "ocupacion": alumno.ocupacion or "",
+            },
+            status=status.HTTP_200_OK,
+        )
 
 class AlumnosAll(generics.CreateAPIView):
-    permission_classes = (IsAdminOrAuthenticated,)
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
     def get(self, request, *args, **kwargs):
-        alumnos = Alumnos.objects.filter(user__is_active = 1).order_by("id")
+        alumnos = Alumnos.objects.all().order_by("id")
         lista = AlumnoSerializer(alumnos, many=True).data
         
         return Response(lista, 200)
@@ -45,6 +133,8 @@ class AlumnosAll(generics.CreateAPIView):
 class AlumnosView(generics.CreateAPIView):
     #Obtener usuario por ID
     # permission_classes = (permissions.IsAuthenticated,)
+    authentication_classes = DEFAULT_API_AUTH
+
     def get(self, request, *args, **kwargs):
         alumno = get_object_or_404(Alumnos, id = request.GET.get("id"))
         alumno = AlumnoSerializer(alumno, many=False).data
@@ -54,77 +144,108 @@ class AlumnosView(generics.CreateAPIView):
     #Registrar nuevo usuario
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        # Diagnostic logging
-        logger.info('RAW BODY: %s', request.body)
-        logger.info('PARSED DATA: %s', request.data)
+        user = UserSerializer(data=request.data)
+        if user.is_valid():
+            role = request.data['rol']
+            first_name = request.data['first_name']
+            last_name = request.data['last_name']
+            email = request.data['email']
+            password = request.data['password']
 
-        user_serializer = UserSerializer(data=request.data)
-        if not user_serializer.is_valid():
-            logger.info('User serializer errors: %s', user_serializer.errors)
-            return Response({'errors': user_serializer.errors, 'received': dict(request.data)}, status=400)
+            existing_user = User.objects.filter(email=email).first()
 
-        # Safely extract fields
-        role = request.data.get('rol')
-        first_name = request.data.get('first_name', '')
-        last_name = request.data.get('last_name', '')
-        email = request.data.get('email')
-        password = request.data.get('password')
+            if existing_user:
+                return Response({"message":"Username "+email+", is already taken"},400)
 
-        if not all([email, password, role]):
-            missing = [k for k in ('email', 'password', 'rol') if not request.data.get(k)]
-            return Response({'detail': f'missing required fields: {missing}'}, status=400)
+            user = User.objects.create( username = email,
+                                        email = email,
+                                        first_name = first_name,
+                                        last_name = last_name,
+                                        is_active = 1)
 
-        #Valida si existe el usuario o bien el email registrado
-        existing_user = User.objects.filter(email=email).first()
+            user.save()
+            user.set_password(password)
+            user.save()
 
-        if existing_user:
-            return Response({"message": f"Username {email} is already taken"}, 400)
+            group, created = Group.objects.get_or_create(name=role)
+            group.user_set.add(user)
+            user.save()
 
-        # Create user and profile
-        user = User.objects.create(username=email, email=email, first_name=first_name, last_name=last_name, is_active=1)
-        user.save()
-        user.set_password(password)
-        user.save()
+            alumno = Alumnos.objects.create(user=user,
+                                            matricula= request.data.get("matricula"),
+                                            ocupacion= request.data.get("ocupacion"))
+            alumno.save()
 
-        group, created = Group.objects.get_or_create(name=role)
-        group.user_set.add(user)
-        user.save()
+            return Response({"alumno_created_id": alumno.id }, 201)
 
-        matricula = request.data.get('matricula')
-        alumno = Alumnos.objects.create(user=user, matricula=matricula)
-        alumno.save()
-
-        return Response({"alumno_created_id": alumno.id }, 201)
+        return Response(user.errors, status=status.HTTP_400_BAD_REQUEST)
 
    #Editar alumno
 class AlumnosViewEdit (generics.CreateAPIView):
-    permission_classes = (IsAdminOrAuthenticated,)
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
     def put(self, request, *args, **kwargs):
-        # iduser=request.data["id"]
-        alumno = get_object_or_404(Alumnos, id=request.data["id"])
-        alumno.matricula = request.data["matricula"]
+        from GTEA_Project_API.views.users import _request_user_is_admin
+
+        data = request.data
+        alumno_id = data.get("id")
+        if alumno_id in (None, ""):
+            alumno_id = data.get("alumno_id")
+        if alumno_id in (None, ""):
+            alumno = get_object_or_404(Alumnos, user=request.user)
+        else:
+            alumno = get_object_or_404(Alumnos, id=alumno_id)
+            if alumno.user_id != request.user.id:
+                if not _request_user_is_admin(request.user) and not _is_organizador_user(request.user):
+                    return Response({"details": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        fn = data.get("first_name")
+        if fn is None and "nombre" in data:
+            fn = data.get("nombre")
+        ln = data.get("last_name")
+        if ln is None and "apellidos" in data:
+            ln = data.get("apellidos")
+        if fn is not None:
+            alumno.user.first_name = fn
+        if ln is not None:
+            alumno.user.last_name = ln
+        if "matricula" in data:
+            alumno.matricula = data.get("matricula", alumno.matricula)
+        if "ocupacion" in data:
+            alumno.ocupacion = data.get("ocupacion", alumno.ocupacion)
+        alumno.user.save()
         alumno.save()
-        temp = alumno.user
-        temp.first_name = request.data["first_name"]
-        temp.last_name = request.data["last_name"]
-        temp.save()
         user = AlumnoSerializer(alumno, many=False).data
 
         return Response(user,200)
     
     @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        if not request.user.groups.filter(name__iexact='administrador').exists():
-            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-
-        alumno_id = request.GET.get("id")
-        if not alumno_id:
-            return Response({"detail": "id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
-
-        alumno = get_object_or_404(Alumnos, id=alumno_id)
+        alumno= get_object_or_404(Alumnos, id=request.GET.get("id"))
         try:
             alumno.user.delete()
-            return Response({"details": "Alumno eliminado"}, status=status.HTTP_200_OK)
-        except Exception:
-            logger.exception("Error deleting alumno id=%s by user_id=%s", alumno_id, getattr(request.user, 'id', None))
-            return Response({"detail": "Error al eliminar alumno"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"details": "Alumno eliminado"})
+        except Exception as e:
+            return Response({"details": "Algo pasó al eliminar"})
+
+
+class AlumnoIsActivePatch(APIView):
+    """PATCH /alumnos/<pk>/ — solo administradores; body: { is_active: bool }"""
+    authentication_classes = DEFAULT_API_AUTH
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def patch(self, request, pk, *args, **kwargs):
+        from GTEA_Project_API.views.users import _request_user_is_admin
+
+        if not _request_user_is_admin(request.user):
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        if "is_active" not in request.data:
+            return Response({"detail": "is_active es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+        alumno = get_object_or_404(Alumnos, pk=pk)
+        val = request.data.get("is_active")
+        if isinstance(val, str):
+            alumno.user.is_active = val.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            alumno.user.is_active = bool(val)
+        alumno.user.save(update_fields=["is_active"])
+        return Response(AlumnoSerializer(alumno).data, status=status.HTTP_200_OK)
