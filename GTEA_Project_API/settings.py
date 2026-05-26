@@ -16,6 +16,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def env_list(name, default=''):
+    value = os.environ.get(name, default)
+    return [item.strip() for item in value.split(',') if item.strip()]
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -33,7 +38,7 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.environ.get(
-    'ALLOWED_HOSTS', '127.0.0.1'
+    'ALLOWED_HOSTS', '127.0.0.1,localhost,gtea.ezarr.rocks'
 ).split(',')
 
 # Tell Django to trust the X-Forwarded-Proto header from nginx/reverse-proxy
@@ -145,14 +150,23 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings (development)
-# Allow the Angular dev server origin. For quick development you can set
-# CORS_ALLOW_ALL_ORIGINS = True, but prefer CORS_ALLOWED_ORIGINS in most cases.
-CORS_ALLOWED_ORIGINS = os.environ.get(
+# Allow the Angular dev server origin and the Coolify preview domain pattern.
+CORS_ALLOWED_ORIGINS = env_list(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:4200'
-).split(',')
+    'http://localhost:4200,http://localhost'
+)
+
+CORS_ALLOWED_ORIGIN_REGEXES = env_list(
+    'CORS_ALLOWED_ORIGIN_REGEXES',
+    r'^https://.*\\.torpid\\.iokoia\\.com$'
+)
 
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = env_list(
+    'CSRF_TRUSTED_ORIGINS',
+    'https://*.torpid.iokoia.com'
+)
 
 CORS_ALLOW_HEADERS = [
     'accept',
