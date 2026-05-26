@@ -37,9 +37,11 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.environ.get(
-    'ALLOWED_HOSTS', '127.0.0.1,localhost,gtea.ezarr.rocks,dq3sk5022uvcy8d6ip69xjsq.torpid.iokoia.com'
-).split(',')
+ALLOWED_HOSTS = sorted({
+    *env_list('ALLOWED_HOSTS', '127.0.0.1,localhost,gtea.ezarr.rocks'),
+    'dq3sk5022uvcy8d6ip69xjsq.torpid.iokoia.com',
+    'agpcrk7lajnvgv7o2nvbyt5e.torpid.iokoia.com',
+})
 
 # Tell Django to trust the X-Forwarded-Proto header from nginx/reverse-proxy
 # so that request.build_absolute_uri() generates https:// URLs in production.
