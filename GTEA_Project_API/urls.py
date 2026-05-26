@@ -16,6 +16,7 @@ urlpatterns = [
 
     # Admins
     path('admins/', users.AdminAll.as_view(), name='admins-list'),
+    path('admins/detail/', users.AdminView.as_view(), name='admins-detail'),
     path('admins/edit/', users.AdminsViewEdit.as_view(), name='admins-edit'),
     path('admins/<int:pk>/', users.AdminIsActivePatch.as_view(), name='admins-patch-active'),
 
