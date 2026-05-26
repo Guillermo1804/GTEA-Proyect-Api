@@ -157,7 +157,7 @@ Todos los endpoints protegidos requieren un token válido enviado en el header.
 ### Flujo de Autenticación
 
 ```
-┌──────────┐       POST /token/              ┌──────────┐
+┌──────────┐    POST /auth/login/            ┌──────────┐
 │  Client  │  ─────────────────────────────► │  Server  │
 │ (Angular)│  { username, password }         │ (Django) │
 │          │  ◄───────────────────────────── │          │
@@ -176,8 +176,11 @@ Authorization: Bearer <tu_token>
 
 | Método | Endpoint         | Descripción                              | Auth  |
 |--------|------------------|------------------------------------------|-------|
-| POST   | `/token/`        | Obtener token con credenciales           | ❌   |
-| GET    | `/logout/`       | Invalidar token activo                   | ✅   |
+| POST   | `/auth/login/`   | Obtener token con credenciales           | ❌   |
+| GET    | `/auth/logout/`  | Invalidar token activo                   | ✅   |
+
+> [!IMPORTANT]
+> Convención de base path: el backend acepta rutas tanto en raíz (`/auth/login/`) como con prefijo `/api/` (`/api/auth/login/`) para compatibilidad entre entornos.
 
 > [!NOTE]
 > El login retorna el token junto con información del usuario como `user_id`, `role`, `first_name`, `last_name` y `email`.
@@ -190,21 +193,21 @@ Authorization: Bearer <tu_token>
 
 | Método | Endpoint              | Descripción                          |
 |--------|-----------------------|--------------------------------------|
-| GET    | `/lista-admins/`         | Listar administradores               |
-| GET    | `/admin/?id={id}`        | Detalle de un administrador          |
-| POST   | `/admin/`                | Crear administrador                  |
-| PUT    | `/admins-edit/`          | Editar administrador                 |
-| DELETE | `/admins-edit/?id={id}`  | Eliminar administrador (hard-delete) |
-| GET    | `/lista-organizadores/`  | Listar organizadores                 |
-| GET    | `/organizadores/?id={id}`| Detalle de un organizador            |
-| POST   | `/organizadores/`        | Crear organizador                    |
-| PUT    | `/organizadores-edit/`   | Editar organizador                   |
-| DELETE | `/organizadores-edit/?id={id}` | Eliminar organizador (hard-delete) |
-| GET    | `/lista-alumnos/`        | Listar alumnos                       |
-| GET    | `/alumnos/?id={id}`      | Detalle de un alumno                 |
-| POST   | `/alumnos/`              | Crear alumno                         |
-| PUT    | `/alumnos-edit/`         | Editar alumno                        |
-| DELETE | `/alumnos-edit/?id={id}` | Eliminar alumno (hard-delete)        |
+| GET    | `/admins/`               | Listar administradores               |
+| GET    | `/admins/detail/?id={id}`| Detalle de un administrador          |
+| POST   | `/admins/detail/`        | Crear administrador                  |
+| PUT    | `/admins/edit/`          | Editar administrador                 |
+| DELETE | `/admins/edit/?id={id}`  | Eliminar administrador (hard-delete) |
+| GET    | `/organizadores/`        | Listar organizadores                 |
+| GET    | `/organizadores/detail/?id={id}` | Detalle de un organizador    |
+| POST   | `/organizadores/detail/` | Crear organizador                    |
+| PUT    | `/organizadores/edit/`   | Editar organizador                   |
+| DELETE | `/organizadores/edit/?id={id}` | Eliminar organizador (hard-delete) |
+| GET    | `/alumnos/`              | Listar alumnos                       |
+| GET    | `/alumnos/detail/?id={id}` | Detalle de un alumno               |
+| POST   | `/alumnos/detail/`       | Crear alumno                         |
+| PUT    | `/alumnos/edit/`         | Editar alumno                        |
+| DELETE | `/alumnos/edit/?id={id}` | Eliminar alumno (hard-delete)        |
 
 ### Sedes & Aulas
 
@@ -212,16 +215,14 @@ Relación: **Sede `1 ── ∞` Aulas**
 
 | Método | Endpoint          | Descripción                           |
 |--------|-------------------|---------------------------------------|
-| GET    | `/lista-sedes/`        | Listar sedes                          |
-| GET    | `/sede/?id={id}`       | Detalle de una sede                   |
-| POST   | `/sede/`               | Crear sede                            |
-| PUT    | `/sedes-edit/`         | Editar sede                           |
-| DELETE | `/sedes-edit/?id={id}` | Eliminar sede (hard-delete)           |
-| GET    | `/lista-aulas/`        | Listar aulas (opcional `?sede_id=`)   |
-| GET    | `/aula/?id={id}`       | Detalle de un aula                    |
-| POST   | `/aula/`               | Crear aula                            |
-| PUT    | `/aulas-edit/`         | Editar aula                           |
-| DELETE | `/aulas-edit/?id={id}` | Eliminar aula (hard-delete)           |
+| GET    | `/sedes/`              | Listar/crear sedes                    |
+| GET    | `/sedes/detail/?id={id}` | Detalle de una sede                 |
+| PUT    | `/sedes/edit/`         | Editar sede                           |
+| DELETE | `/sedes/detail/?id={id}` | Eliminar sede (hard-delete)         |
+| GET    | `/aulas/`              | Listar/crear aulas                    |
+| GET    | `/aulas/detail/?id={id}` | Detalle de un aula                  |
+| PUT    | `/aulas/edit/`         | Editar aula                           |
+| DELETE | `/aulas/detail/?id={id}` | Eliminar aula (hard-delete)         |
 
 > **Modelo `Aulas`:** Cada aula tiene un `estado` con opciones: `disponible`, `en-uso`, `mantenimiento`.
 
@@ -229,21 +230,22 @@ Relación: **Sede `1 ── ∞` Aulas**
 
 | Método | Endpoint              | Descripción                       |
 |--------|-----------------------|-----------------------------------|
-| GET    | `/lista-categorias/`        | Listar categorías                  |
-| GET    | `/categoria/?id={id}`       | Detalle de una categoría           |
-| POST   | `/categoria/`               | Crear categoría                    |
-| PUT    | `/categorias-edit/`         | Editar categoría                   |
-| DELETE | `/categorias-edit/?id={id}` | Eliminar categoría (hard-delete)   |
+| GET    | `/categorias/`              | Listar/crear categorías            |
+| GET    | `/categorias/detail/?id={id}` | Detalle de una categoría         |
+| PUT    | `/categorias/edit/`         | Editar categoría                   |
+| DELETE | `/categorias/detail/?id={id}` | Eliminar categoría (hard-delete) |
 
 ### Eventos
 
 | Método | Endpoint            | Descripción                          |
 |--------|---------------------|--------------------------------------|
-| GET    | `/lista-eventos/`        | Listar eventos                       |
-| GET    | `/evento/?id={id}`       | Detalle de un evento                 |
-| POST   | `/evento/`               | Crear evento                         |
-| PUT    | `/eventos-edit/`         | Editar evento                        |
-| DELETE | `/eventos-edit/?id={id}` | Eliminar evento (hard-delete)        |
+| GET    | `/eventos/public/`       | Catálogo público (sin auth)          |
+| GET    | `/eventos/`              | Listar eventos (auth)                |
+| GET    | `/eventos/detail/?id={id}` | Detalle de un evento               |
+| POST   | `/eventos/`              | Crear evento                         |
+| PUT    | `/eventos/edit/`         | Editar evento                        |
+| DELETE | `/eventos/edit/?id={id}` | Eliminar evento (hard-delete)        |
+| POST   | `/eventos/imagen-upload/` | Subir imagen de portada             |
 
 **Campos clave del modelo `Eventos`:**
 
@@ -263,13 +265,14 @@ organizador (FK → User)
 
 | Método | Endpoint                       | Descripción                                     |
 |--------|--------------------------------|-------------------------------------------------|
-| GET    | `/lista-inscripciones/`        | Listar inscripciones (filtros `evento_id`, `alumno_id`) |
-| GET    | `/inscripcion/?id={id}`        | Detalle de una inscripción                      |
-| POST   | `/inscripcion/`                | Inscribir alumno (o enviar a lista de espera)   |
-| PUT    | `/inscripciones-edit/`         | Editar inscripción (por `id`)                   |
-| DELETE | `/inscripciones-edit/?id={id}` | Eliminar inscripción (hard-delete)              |
-| POST   | `/inscripciones-lista-espera/` | Forzar inscripción a lista de espera            |
-| DELETE | `/inscripciones-cancel/?evento_id={id}&alumno_id={id}` | Cancelar inscripción por evento+alumno |
+| GET    | `/inscripciones/`              | Listar/filtrar inscripciones                    |
+| GET    | `/inscripciones/detail/?id={id}` | Detalle de una inscripción                    |
+| POST   | `/inscripciones/`              | Inscribir alumno (o enviar a lista de espera)   |
+| PUT    | `/inscripciones/edit/`         | Editar inscripción (por `id`)                   |
+| DELETE | `/inscripciones/detail/?id={id}` | Eliminar inscripción (hard-delete)            |
+| GET    | `/inscripciones/mis-eventos/`  | Eventos del alumno autenticado                  |
+| POST   | `/inscripciones/lista-espera/` | Operaciones de lista de espera                  |
+| DELETE | `/inscripciones/cancel/`       | Cancelar por `evento_id` + `alumno_id`          |
 
 **Flujo de inscripción:**
 
@@ -294,7 +297,7 @@ Inscrito     Lista de espera
 
 | Método | Endpoint              | Descripción                           |
 |--------|-----------------------|---------------------------------------|
-| GET    | `/reportes-resumen/`  | Resumen con métricas generales del sistema |
+| GET    | `/reportes/resumen/`  | Resumen con métricas generales del sistema |
 
 ---
 

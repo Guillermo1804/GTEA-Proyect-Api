@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path, re_path
 from .views import alumnos
 from .views import auth
 from .views import categorias
@@ -9,7 +9,7 @@ from .views import reportes
 from .views import sedes
 from .views import users
 
-urlpatterns = [
+core_urlpatterns = [
     # Auth
     path('auth/login/', auth.CustomAuthToken.as_view(), name='auth-login'),
     path('auth/logout/', auth.Logout.as_view(), name='auth-logout'),
@@ -70,12 +70,17 @@ urlpatterns = [
     path('reportes/resumen/', reportes.ReportesResumen.as_view(), name='reportes-resumen'),
 ]
 
+urlpatterns = [
+    *core_urlpatterns,
+    # Compatibilidad: aceptar también rutas con prefijo /api/
+    path('api/', include((core_urlpatterns, 'gtea_api'), namespace='api')),
+]
+
 # Archivos subidos (imágenes de eventos, etc.)
 # `static(MEDIA_URL, ...)` solo añade rutas cuando DEBUG=True; con DEBUG=False (default en
 # settings) las peticiones a /media/... daban 404. Servimos MEDIA siempre desde Django;
 # en producción conviene que nginx sirva /media/ antes de llegar aquí (más eficiente).
 from django.conf import settings
-from django.urls import re_path
 from django.views.static import serve
 
 if getattr(settings, 'MEDIA_URL', None) and getattr(settings, 'MEDIA_ROOT', None):
