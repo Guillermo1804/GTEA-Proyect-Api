@@ -38,7 +38,7 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.environ.get(
-    'ALLOWED_HOSTS', '127.0.0.1,localhost,gtea.ezarr.rocks'
+    'ALLOWED_HOSTS', '127.0.0.1,localhost,gtea.ezarr.rocks, https://agpcrk7lajnvgv7o2nvbyt5e.torpid.iokoia.com'
 ).split(',')
 
 # Tell Django to trust the X-Forwarded-Proto header from nginx/reverse-proxy
